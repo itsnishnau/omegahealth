@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Omega Health icon">
+  <rect width="256" height="256" rx="52" fill="#513B70"/>
+  <circle cx="128" cy="92" r="44" fill="#A7DCD0"/>
+  <path d="M82 154c22-20 42-30 46-30s24 10 46 30v26H82v-26Z" fill="#F0EAF7"/>
+  <path d="M97 72c14-18 26-24 31-24 15 0 30 11 31 35-15-17-27-20-31-20-10 0-18 4-31 9Z" fill="#D9C9EE" opacity="0.7"/>
+</svg>
