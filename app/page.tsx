@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   Bell,
@@ -155,6 +155,12 @@ function formatShortDate(dateValue: string) {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
 }
 
+function formatNoteDate(dateValue: string) {
+  const date = new Date(dateValue);
+  if (!dateValue || Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(date);
+}
+
 function getDifferenceInDays(start: string, end: string) {
   const from = new Date(`${start}T12:00:00`);
   const to = new Date(`${end}T12:00:00`);
@@ -191,6 +197,12 @@ export default function HomePage() {
   const [authForm, setAuthForm] = useState({ email: "", password: "" });
   const [symptomInput, setSymptomInput] = useState("");
   const [noteEditor, setNoteEditor] = useState({ id: "", title: "", content: "" });
+  const [noteEditorOpen, setNoteEditorOpen] = useState(false);
+  const [noteError, setNoteError] = useState("");
+  const [isSavingNote, setIsSavingNote] = useState(false);
+  const noteSaveInProgress = useRef(false);
+  const [doctorNotesMenuOpen, setDoctorNotesMenuOpen] = useState(false);
+  const [doctorNotesNotificationsOpen, setDoctorNotesNotificationsOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [appState, setAppState] = useState<AppState>(demoState);
@@ -343,39 +355,71 @@ export default function HomePage() {
     setDeleteDialogOpen(false);
   };
 
-  const saveNote = () => {
-    if (!noteEditor.title.trim() && !noteEditor.content.trim()) return;
-
+  const hasUnsavedNoteChanges = () => {
     if (noteEditor.id) {
-      setAppState((prev) => ({
-        ...prev,
-        notes: prev.notes.map((note) =>
-          note.id === noteEditor.id
-            ? {
-                ...note,
-                title: noteEditor.title.trim() || "Untitled note",
-                content: noteEditor.content.trim(),
-                updatedAt: new Date().toISOString(),
-              }
-            : note,
-        ),
-      }));
-    } else {
-      const created: Note = {
-        id: crypto.randomUUID(),
-        title: noteEditor.title.trim() || "Untitled note",
-        content: noteEditor.content.trim(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setAppState((prev) => ({ ...prev, notes: [created, ...prev.notes] }));
+      const savedNote = appState.notes.find((note) => note.id === noteEditor.id);
+      return !savedNote || noteEditor.title !== savedNote.title || noteEditor.content !== savedNote.content;
+    }
+    return noteEditor.title.length > 0 || noteEditor.content.length > 0;
+  };
+
+  const closeNoteEditor = () => {
+    if (hasUnsavedNoteChanges() && !window.confirm("Discard your unsaved note changes?")) return;
+    setNoteEditor({ id: "", title: "", content: "" });
+    setNoteEditorOpen(false);
+    setNoteError("");
+  };
+
+  const startNewNote = () => {
+    setNoteEditor({ id: "", title: "", content: "" });
+    setNoteError("");
+    setNoteEditorOpen(true);
+  };
+
+  const saveNote = () => {
+    if (noteSaveInProgress.current) return;
+    const title = noteEditor.title.trim();
+    const content = noteEditor.content.trim();
+
+    if (!title || !content) {
+      setNoteError("Add a title and note content before saving.");
+      return;
     }
 
-    setNoteEditor({ id: "", title: "", content: "" });
+    if (noteEditor.id && !appState.notes.some((note) => note.id === noteEditor.id)) {
+      setNoteError("This saved note is no longer available. Reopen the notes list and try again.");
+      return;
+    }
+
+    noteSaveInProgress.current = true;
+    setIsSavingNote(true);
+    const timestamp = new Date().toISOString();
+    const nextNotes = noteEditor.id
+      ? appState.notes.map((note) =>
+          note.id === noteEditor.id ? { ...note, title, content, updatedAt: timestamp } : note,
+        )
+      : [{ id: crypto.randomUUID(), title, content, createdAt: timestamp, updatedAt: timestamp }, ...appState.notes];
+    const nextState = { ...appState, notes: nextNotes };
+
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
+      setAppState(nextState);
+      setNoteEditor({ id: "", title: "", content: "" });
+      setNoteEditorOpen(false);
+      setNoteError("");
+    } catch {
+      setNoteError("Your note could not be saved. Check your device storage and try again.");
+    } finally {
+      noteSaveInProgress.current = false;
+      setIsSavingNote(false);
+    }
   };
 
   const editNote = (note: Note) => {
+    if (noteEditorOpen && hasUnsavedNoteChanges() && !window.confirm("Discard your unsaved note changes?")) return;
     setNoteEditor({ id: note.id, title: note.title, content: note.content });
+    setNoteError("");
+    setNoteEditorOpen(true);
     setSection("doctor-notes");
   };
 
@@ -577,31 +621,45 @@ export default function HomePage() {
       </div>
 
       <div className="rounded-[30px] border border-omega-lilac/70 bg-white p-5 shadow-soft">
-        {noteEditor.id || noteEditor.content || noteEditor.title ? (
+        {noteEditorOpen ? (
           <div className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-[1.4fr_0.6fr]">
-              <input
-                value={noteEditor.title}
-                onChange={(event) => setNoteEditor((prev) => ({ ...prev, title: event.target.value }))}
-                placeholder="Appointment note title"
-                className="rounded-2xl border border-omega-lilac bg-omega-beige px-4 py-3 text-sm outline-none"
-              />
-              <button type="button" className="rounded-2xl border border-omega-lilac bg-white px-4 py-3 text-sm font-medium text-omega-purple">
-                <span className="inline-flex items-center gap-2"><Mic className="h-4 w-4" /> Dictate</span>
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-lg font-semibold text-omega-purple">{noteEditor.id ? "Edit note" : "New note"}</h3>
+              <button type="button" onClick={closeNoteEditor} className="rounded-full border border-omega-lilac p-2 text-omega-purple" aria-label="Close note editor">
+                <X className="h-4 w-4" />
               </button>
             </div>
-            <textarea
-              value={noteEditor.content}
-              onChange={(event) => setNoteEditor((prev) => ({ ...prev, content: event.target.value }))}
-              placeholder="Record symptoms, questions, and how it affects everyday life..."
-              className="min-h-[220px] w-full rounded-2xl border border-omega-lilac bg-omega-beige p-4 text-sm outline-none"
-            />
+            <label className="block text-sm font-medium text-omega-ink">
+              Title
+              <input
+                value={noteEditor.title}
+                onChange={(event) => {
+                  setNoteEditor((prev) => ({ ...prev, title: event.target.value }));
+                  setNoteError("");
+                }}
+                placeholder="Appointment note title"
+                className="mt-2 w-full rounded-2xl border border-omega-lilac bg-omega-beige px-4 py-3 text-sm outline-none"
+              />
+            </label>
+            <label className="block text-sm font-medium text-omega-ink">
+              Note
+              <textarea
+                value={noteEditor.content}
+                onChange={(event) => {
+                  setNoteEditor((prev) => ({ ...prev, content: event.target.value }));
+                  setNoteError("");
+                }}
+                placeholder="Record symptoms, questions, and how it affects everyday life..."
+                className="mt-2 min-h-[220px] w-full rounded-2xl border border-omega-lilac bg-omega-beige p-4 text-sm outline-none"
+              />
+            </label>
+            {noteError ? <p role="alert" className="text-sm text-red-700">{noteError}</p> : null}
             <div className="flex flex-wrap items-center gap-3">
-              <button type="button" onClick={saveNote} className="inline-flex items-center gap-2 rounded-full bg-omega-purple px-4 py-2 text-sm font-semibold text-white">
-                <Save className="h-4 w-4" /> Save note
+              <button type="button" onClick={saveNote} disabled={isSavingNote} className="inline-flex items-center gap-2 rounded-full bg-omega-purple px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
+                <Save className="h-4 w-4" /> {isSavingNote ? "Saving..." : "Save Note"}
               </button>
-              <button type="button" onClick={() => setNoteEditor({ id: "", title: "", content: "" })} className="rounded-full border border-omega-lilac px-4 py-2 text-sm font-medium text-omega-ink">
-                Clear
+              <button type="button" onClick={closeNoteEditor} className="rounded-full border border-omega-lilac px-4 py-2 text-sm font-medium text-omega-ink">
+                Cancel
               </button>
             </div>
           </div>
@@ -610,8 +668,8 @@ export default function HomePage() {
             <NotebookPen className="h-12 w-12 text-omega-purple" />
             <h3 className="mt-4 text-2xl font-semibold text-omega-ink">Get started</h3>
             <p className="mt-2 max-w-md text-sm text-omega-slate">Keep a private record of symptoms, questions, and concerns for your next appointment.</p>
-            <button type="button" onClick={() => setNoteEditor({ id: "", title: "", content: "" })} className="mt-6 rounded-full bg-omega-purple px-5 py-3 text-sm font-semibold text-white">
-              New note
+            <button type="button" onClick={startNewNote} className="mt-6 rounded-full bg-omega-purple px-5 py-3 text-sm font-semibold text-white">
+              New Note
             </button>
           </div>
         )}
@@ -621,25 +679,30 @@ export default function HomePage() {
         <h3 className="text-lg font-semibold text-omega-purple">Saved notes</h3>
         <div className="mt-4 space-y-3">
           {appState.notes.length ? (
-            appState.notes.map((note) => (
+            appState.notes.map((note) => {
+              const preview = note.content.trim();
+              const updatedDate = formatNoteDate(note.updatedAt);
+
+              return (
               <div key={note.id} className="rounded-2xl bg-omega-beige p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-base font-semibold text-omega-ink">{note.title}</p>
-                    <p className="text-xs text-omega-slate">Updated {new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(note.updatedAt))}</p>
+                    {updatedDate ? <p className="text-xs text-omega-slate">Updated {updatedDate}</p> : null}
                   </div>
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => editNote(note)} className="rounded-full border border-omega-lilac p-2 text-omega-purple" aria-label="Edit note">
-                      <Pencil className="h-4 w-4" />
+                    <button type="button" onClick={() => editNote(note)} className="inline-flex items-center gap-2 rounded-full border border-omega-lilac bg-white px-3 py-2 text-xs font-medium text-omega-purple" aria-label={`Open and edit ${note.title}`}>
+                      <Pencil className="h-4 w-4" /> Open note
                     </button>
                     <button type="button" onClick={() => setAppState((prev) => ({ ...prev, notes: prev.notes.filter((item) => item.id !== note.id) }))} className="rounded-full border border-omega-lilac p-2 text-omega-purple" aria-label="Delete note">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
-                <p className="mt-3 text-sm text-omega-ink">{note.content}</p>
+                <p className="mt-3 whitespace-pre-wrap text-sm text-omega-ink">{preview.length > 180 ? `${preview.slice(0, 180)}...` : preview || "No content"}</p>
               </div>
-            ))
+              );
+            })
           ) : (
             <p className="text-sm text-omega-slate">No notes saved yet.</p>
           )}
@@ -1164,18 +1227,68 @@ export default function HomePage() {
         <div className="flex-1 rounded-[30px] bg-[#fffaf5] p-4 shadow-soft md:p-6">
           <header className="flex items-center justify-between gap-3 border-b border-omega-lilac/60 pb-4">
             <div className="flex items-center gap-3">
-              <button type="button" className="rounded-full border border-omega-lilac bg-white p-2 lg:hidden">
-                <Menu className="h-5 w-5 text-omega-purple" />
-              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (section === "doctor-notes") setDoctorNotesMenuOpen((open) => !open);
+                  }}
+                  aria-label="Open navigation menu"
+                  aria-expanded={section === "doctor-notes" && doctorNotesMenuOpen}
+                  className="rounded-full border border-omega-lilac bg-white p-2 lg:hidden"
+                >
+                  <Menu className="h-5 w-5 text-omega-purple" />
+                </button>
+                {section === "doctor-notes" && doctorNotesMenuOpen ? (
+                  <nav className="absolute left-0 top-full z-30 mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-omega-lilac bg-white p-2 shadow-soft" aria-label="App sections">
+                    {navItems.map(({ label, key, icon: Icon }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => {
+                          setSection(key);
+                          setDoctorNotesMenuOpen(false);
+                          setDoctorNotesNotificationsOpen(false);
+                        }}
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium text-omega-ink hover:bg-omega-beige"
+                      >
+                        <Icon className="h-4 w-4 text-omega-purple" />
+                        {label}
+                      </button>
+                    ))}
+                  </nav>
+                ) : null}
+              </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-omega-slate">Dashboard</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-omega-slate">{section === "doctor-notes" ? "Doctor Notes" : "Dashboard"}</p>
                 <h1 className="mt-1 text-2xl font-semibold text-omega-ink">{`Welcome, ${appState.profile.preferredName}!`}</h1>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button type="button" className="rounded-full border border-omega-lilac bg-white p-2 text-omega-purple">
-                <Bell className="h-4 w-4" />
-              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (section === "doctor-notes") setDoctorNotesNotificationsOpen((open) => !open);
+                  }}
+                  aria-label="Notifications"
+                  aria-expanded={section === "doctor-notes" && doctorNotesNotificationsOpen}
+                  className="rounded-full border border-omega-lilac bg-white p-2 text-omega-purple"
+                >
+                  <Bell className="h-4 w-4" />
+                </button>
+                {section === "doctor-notes" && doctorNotesNotificationsOpen ? (
+                  <section className="absolute right-0 top-full z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-omega-lilac bg-white p-4 shadow-soft" aria-label="Notifications">
+                    <div className="flex items-center justify-between gap-3">
+                      <h2 className="text-sm font-semibold text-omega-ink">Notifications</h2>
+                      <button type="button" onClick={() => setDoctorNotesNotificationsOpen(false)} className="rounded-full p-1 text-omega-purple" aria-label="Close notifications">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <p className="mt-3 text-sm text-omega-slate" role="status">No notifications right now.</p>
+                  </section>
+                ) : null}
+              </div>
               <button type="button" onClick={() => setScreen("welcome")} className="rounded-full border border-omega-lilac bg-white px-3 py-2 text-sm font-medium text-omega-purple">Sign out</button>
             </div>
           </header>
