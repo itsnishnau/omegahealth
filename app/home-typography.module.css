@@ -1,0 +1,31 @@
+.page {
+  font-family: "Times New Roman", Times, serif;
+  line-height: 1.55;
+}
+
+.page :is(h1, h2, h3, h4, h5, h6),
+.heading {
+  font-family: var(--font-home-script), "Dancing Script", cursive;
+  letter-spacing: normal;
+  line-height: 1.2;
+}
+
+.greeting {
+  overflow-wrap: anywhere;
+}
+
+.page .bodyText {
+  font-family: "Times New Roman", Times, serif;
+  letter-spacing: normal;
+}
+
+.header {
+  font-family: "Times New Roman", Times, serif;
+}
+
+.header h1 {
+  font-family: var(--font-home-script), "Dancing Script", cursive;
+  letter-spacing: normal;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
