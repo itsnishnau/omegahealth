@@ -1,4 +1,7 @@
 "use client";
+import Image from 'next/image';
+import EpsilonChat from '../components/EpsilonChat';
+import './epsilon.css';
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -1451,19 +1454,7 @@ export default function HomePage() {
           </select>
         </div>
 
-        <div className="flex items-center justify-between gap-3 rounded-2xl bg-omega-beige p-4">
-          <div>
-            <p className="text-sm font-semibold text-omega-ink">AI consent</p>
-            <p className="text-sm text-omega-slate">Opt in for future assistant support.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setAppState((prev) => ({ ...prev, profile: { ...prev.profile, aiConsent: !prev.profile.aiConsent } }))}
-            className={`rounded-full px-4 py-2 text-sm font-medium ${appState.profile.aiConsent ? "bg-omega-purple text-white" : "bg-white text-omega-purple"}`}
-          >
-            {appState.profile.aiConsent ? "Enabled" : "Disabled"}
-          </button>
-        </div>
+        <div className="rounded-2xl bg-omega-beige p-4"><p className="text-sm font-semibold text-omega-ink">Epsilon FAQ guide</p><p className="text-sm text-omega-slate">Free preset replies on your device. No API key needed and no chat messages sent to an AI service.</p></div>
 
         <div className="rounded-2xl bg-omega-beige p-4">
           <button type="button" onClick={handleExport} className="inline-flex items-center gap-2 rounded-full bg-omega-purple px-4 py-2 text-sm font-semibold text-white">
@@ -1650,9 +1641,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-6xl rounded-[40px] bg-[#fffaf4] p-5 shadow-soft md:p-8">
           <header className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-omega-purple p-3 text-white">
-                <Heart className="h-6 w-6" />
-              </div>
+              <Image src="/omegahealth-logo.png" width={150} height={104} alt="Omega Health" priority className="h-auto w-28 sm:w-36" />
               <div>
                 <p className="text-xs uppercase tracking-[0.25em] text-omega-slate">Omega Health</p>
                 <p className="text-sm font-medium text-omega-purple">Your cycle. Your pace. Your health.</p>
@@ -1710,7 +1699,8 @@ export default function HomePage() {
             </div>
           </section>
         </div>
-      </main>
+      <EpsilonChat onNavigate={destination => {setSection(destination);setScreen('app');}} inApp={false} />
+</main>
     );
   }
 
@@ -1760,12 +1750,13 @@ export default function HomePage() {
             Back
           </button>
         </div>
-      </main>
+      <EpsilonChat onNavigate={destination => {setSection(destination);setScreen('app');}} inApp={false} />
+</main>
     );
   }
 
   if (screen === "onboarding") {
-    return onboardingPage;
+    return <>{onboardingPage}<EpsilonChat onNavigate={destination => {setSection(destination);setScreen('app');}} inApp={false} /></>;
   }
 
   return (
@@ -1773,13 +1764,7 @@ export default function HomePage() {
       <div className="mx-auto flex max-w-7xl gap-4">
         <aside className="hidden min-h-[calc(100vh-2rem)] w-72 rounded-[30px] bg-omega-purple p-5 text-white shadow-soft lg:block">
           <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-white/10 p-3">
-              <Heart className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-omega-lilac">Omega</p>
-              <p className="text-xl font-semibold">Health</p>
-            </div>
+            <div className="w-full rounded-2xl bg-white px-5 py-3"><Image src="/omegahealth-logo.png" width={200} height={139} alt="Omega Health" priority className="mx-auto h-auto w-40" /></div>
           </div>
 
           <nav className="mt-8 space-y-2">
@@ -1914,6 +1899,7 @@ export default function HomePage() {
           </div>
         </div>
       ) : null}
-    </main>
+    <EpsilonChat onNavigate={destination => {setSection(destination);setScreen('app');}} inApp={true} />
+</main>
   );
 }
