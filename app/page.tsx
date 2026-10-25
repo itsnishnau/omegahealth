@@ -1,6 +1,8 @@
 "use client";
 import Image from 'next/image';
 import EpsilonChat from '../components/EpsilonChat';
+import ReadAloudButton from '../components/ReadAloudButton';
+import SpeechToTextButton from '../components/SpeechToTextButton';
 import './epsilon.css';
 
 import { Dancing_Script } from "next/font/google";
@@ -8,19 +10,26 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import homeTypography from "./home-typography.module.css";
 import {
   ArrowRight,
+  Apple,
+  Baby,
+  Backpack,
   Bell,
+  Brain,
   BookOpenText,
+  CalendarClock,
+  CalendarDays,
   CalendarRange,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   Download,
   Dumbbell,
   FileHeart,
   Heart,
+  HeartPulse,
   Home,
   Menu,
-  Mic,
   NotebookPen,
   Pencil,
   Plus,
@@ -253,6 +262,205 @@ interface AppState {
   wellnessLogs: WellnessEntry[];
 }
 
+type ThemePreference = "light" | "dark";
+type TextSizePreference = "small" | "default" | "large" | "extra-large";
+
+interface UiPreferences {
+  theme: ThemePreference;
+  textSize: TextSizePreference;
+  readAloudEnabled: boolean;
+  speechRate: number;
+}
+
+interface EducationSection {
+  title: string;
+  body: string;
+}
+
+interface EducationCategory {
+  id: string;
+  title: string;
+  subtitle: string;
+  icon: typeof HeartPulse;
+  accent: string;
+  sections: EducationSection[];
+  sources: { label: string; href: string }[];
+}
+
+interface NutritionRecommendation {
+  id: string;
+  title: string;
+  text: string;
+  symptoms: RegExp;
+}
+
+const nutritionRecommendations: NutritionRecommendation[] = [
+  {
+    id: "bloating",
+    title: "Bloating: hydration and gentle choices",
+    text: "Sip fluids regularly and consider moderating very salty foods if they seem to affect how you feel. Foods that are easy for you to tolerate may feel more comfortable; there is no single food that works for everyone.",
+    symptoms: /\bbloat(?:ed|ing)?\b/i,
+  },
+  {
+    id: "cramps",
+    title: "Cramps: balanced nourishment",
+    text: "Regular meals and hydration support general wellbeing. Magnesium is found in foods such as beans, lentils, nuts, seeds, and leafy greens; these foods are nutritious but are not a treatment or cure for cramps.",
+    symptoms: /\bcramp(?:s|ing)?\b/i,
+  },
+  {
+    id: "nausea",
+    title: "Nausea: small, simple meals",
+    text: "If tolerated, smaller meals and bland foods such as toast, rice, or crackers may feel easier. Sip fluids in a way that feels comfortable and ask for help if you cannot keep fluids down.",
+    symptoms: /\bnausea|nauseous|queasy\b/i,
+  },
+  {
+    id: "fatigue",
+    title: "Fatigue: steady energy and iron foods",
+    text: "Try regular balanced meals and include iron-containing foods such as lentils, beans, tofu, or fortified cereals. Persistent or severe fatigue can have many causes and may warrant medical evaluation.",
+    symptoms: /\bfatigue|tired|low energy|exhausted\b/i,
+  },
+  {
+    id: "headaches",
+    title: "Headaches: regular meals and fluids",
+    text: "Regular meals and hydration can support general wellbeing. Food changes cannot prevent every headache; talk with a trusted adult or clinician if headaches are severe, frequent, or concerning.",
+    symptoms: /\bheadache|headaches|migraine\b/i,
+  },
+];
+
+const generalNutritionCards = [
+  { title: "Build a balanced plate", text: "A mix of grains or other carbohydrates, protein foods, and fruits or vegetables can support general nourishment.", icon: Apple },
+  { title: "Hydration through the day", text: "Keep a drink nearby and sip when thirsty. Hydration needs vary with activity, weather, and individual circumstances.", icon: HeartPulse },
+  { title: "Everyday iron sources", text: "Beans, lentils, tofu, leafy greens, and some fortified cereals are examples of plant-based foods containing iron.", icon: ClipboardList },
+];
+
+const uiPreferencesStorageKey = "omega-health-ui-preferences-v1";
+const defaultUiPreferences: UiPreferences = {
+  theme: "light",
+  textSize: "default",
+  readAloudEnabled: true,
+  speechRate: 1,
+};
+
+const educationCategories: EducationCategory[] = [
+  {
+    id: "body",
+    title: "Understanding My Body",
+    subtitle: "Anatomy, hormones, puberty, and body changes.",
+    icon: HeartPulse,
+    accent: "bg-omega-lavender",
+    sections: [
+      { title: "The menstrual cycle", body: "The menstrual cycle is a repeating set of changes involving the ovaries and uterus. Hormones help coordinate these changes, but the timing and experience can differ from person to person." },
+      { title: "Puberty and body changes", body: "Puberty happens over several years, and its timing varies. Changes such as breast development, body hair, skin changes, and periods are common parts of development; there is no single schedule everyone follows." },
+      { title: "Learning your own patterns", body: "Noticing changes over time can help you describe your experience to a trusted adult or clinician. Tracking is optional and is not a way to diagnose a health condition." },
+    ],
+    sources: [{ label: "ACOG: Your First Period", href: "https://www.acog.org/womens-health/faqs/your-first-period" }],
+  },
+  {
+    id: "periods",
+    title: "Periods 101",
+    subtitle: "What menstruation is and what can vary.",
+    icon: CalendarDays,
+    accent: "bg-[#f8edf0]",
+    sections: [
+      { title: "What a period is", body: "Menstruation is bleeding from the uterus that leaves the body through the vagina. It happens as part of the menstrual cycle when a pregnancy has not occurred." },
+      { title: "Cycle length and bleeding", body: "Cycle timing and the number of bleeding days can vary, especially in the first years after periods begin. A calendar estimate is only an estimate, not a guarantee." },
+      { title: "Period products", body: "Pads, tampons, menstrual cups, and period underwear are options. Follow product directions, change products regularly, and choose what feels comfortable and accessible for you." },
+    ],
+    sources: [{ label: "ACOG: Your First Period", href: "https://www.acog.org/womens-health/faqs/your-first-period" }],
+  },
+  {
+    id: "irregular",
+    title: "Irregular Cycles",
+    subtitle: "Understand variation and when to ask for support.",
+    icon: CalendarClock,
+    accent: "bg-[#eef5f3]",
+    sections: [
+      { title: "Variation can happen", body: "Cycle timing may vary, particularly during adolescence. Stress, changes in routine, illness, and many other factors can affect timing; a change does not by itself identify a cause." },
+      { title: "Keep useful notes", body: "If you choose, note dates and changes that matter to you. A record can help you explain what you have noticed, but it cannot diagnose why a cycle changed." },
+      { title: "When to talk with someone", body: "Consider speaking with a trusted adult or healthcare professional if you have concerns, if periods stop for several months after being established, or if bleeding or pain is affecting daily activities." },
+    ],
+    sources: [{ label: "ACOG: Menstruation in Girls and Adolescents", href: "https://www.acog.org/clinical/clinical-guidance/committee-opinion/articles/2015/12/menstruation-in-girls-and-adolescents-using-the-menstrual-cycle-as-a-vital-sign" }],
+  },
+  {
+    id: "symptoms",
+    title: "Cramps & Symptoms",
+    subtitle: "Common experiences and comfort options.",
+    icon: Heart,
+    accent: "bg-[#f4eef8]",
+    sections: [
+      { title: "Common symptoms", body: "Some people notice cramps, bloating, headaches, nausea, or changes in energy or mood around a period. Experiences vary and symptoms can have causes unrelated to a menstrual cycle." },
+      { title: "Gentle comfort ideas", body: "Rest, fluids, a warm compress, or gentle movement may feel comforting to some people. Choose what feels safe and comfortable for you; these ideas are not treatments or cures." },
+      { title: "Get support when needed", body: "Pain that is severe, new, worsening, or interfering with school and daily life deserves attention from a trusted adult or healthcare professional." },
+    ],
+    sources: [{ label: "NHS: Period pain", href: "https://www.nhs.uk/conditions/period-pain/" }],
+  },
+  {
+    id: "emotional-health",
+    title: "Mental & Emotional Health",
+    subtitle: "Mood, stress, and supportive ways to check in.",
+    icon: Brain,
+    accent: "bg-[#f7f1e9]",
+    sections: [
+      { title: "Feelings can change", body: "Mood and stress can shift for many reasons. Some people notice a pattern around their cycle, while others do not; tracking does not mean every feeling is caused by hormones." },
+      { title: "Small supportive steps", body: "A break, a conversation with someone you trust, or a simple note about how you feel can help you express what is going on. You do not have to manage difficult feelings alone." },
+      { title: "When to reach out", body: "If distress feels overwhelming or lasts, talk with a trusted adult or health professional. If you feel unsafe or may hurt yourself, seek immediate help from local emergency or crisis support." },
+    ],
+    sources: [{ label: "CDC: Adolescent and School Health", href: "https://www.cdc.gov/healthyyouth/" }],
+  },
+  {
+    id: "school",
+    title: "Periods at School",
+    subtitle: "Prepare for classes, sports, and busy days.",
+    icon: Backpack,
+    accent: "bg-[#eef1f8]",
+    sections: [
+      { title: "A small period kit", body: "If it is useful, pack a period product, spare underwear, and a small bag for used clothing. A kit can be simple and tailored to what you can comfortably carry." },
+      { title: "Activities and classes", body: "Many people continue usual activities during a period. Take a break or ask for help when you need it, and speak with a school nurse or trusted staff member if supplies or support are needed." },
+      { title: "Asking for support", body: "You can tell a trusted adult, school nurse, or teacher what practical help you need. You do not have to share more personal detail than you are comfortable sharing." },
+    ],
+    sources: [{ label: "CDC: Adolescent and School Health", href: "https://www.cdc.gov/healthyyouth/" }],
+  },
+  {
+    id: "reproductive-health",
+    title: "Pregnancy & Reproductive Health",
+    subtitle: "Clear, age-appropriate reproductive biology.",
+    icon: Baby,
+    accent: "bg-[#f8edf0]",
+    sections: [
+      { title: "Basic biology", body: "Pregnancy can begin when sperm fertilizes an egg and the fertilized egg implants in the uterus. Menstrual timing alone cannot confirm or rule out pregnancy." },
+      { title: "Reliable information matters", body: "Questions about sex, contraception, or pregnancy are best discussed with a qualified healthcare professional or another trusted, reliable source. Laws, services, and confidential-care rules differ by location." },
+      { title: "Avoid common assumptions", body: "Symptoms and cycle predictions are not reliable ways to determine pregnancy. If you may be pregnant or have a concern, seek timely advice from a healthcare professional." },
+    ],
+    sources: [{ label: "NHS: Pregnancy", href: "https://www.nhs.uk/pregnancy/" }],
+  },
+  {
+    id: "nutrition",
+    title: "Nutrition & Menstrual Health",
+    subtitle: "Balanced meals, hydration, and everyday nourishment.",
+    icon: Apple,
+    accent: "bg-[#eef5f3]",
+    sections: [
+      { title: "Build balanced meals", body: "A mix of foods, including grains or other carbohydrates, protein foods, fruits or vegetables, and fats can support general nourishment. Needs and preferences differ." },
+      { title: "Iron-containing foods", body: "Iron is found in foods such as beans, lentils, tofu, leafy greens, and some fortified cereals, as well as meat and seafood. A varied diet can include different sources." },
+      { title: "No food is a cure", body: "Food and hydration can support general wellbeing, but no single food is proven to treat menstrual symptoms. Ask a healthcare professional about individual nutrition concerns." },
+    ],
+    sources: [{ label: "NIH: Office of Dietary Supplements", href: "https://ods.od.nih.gov/factsheets/Iron-Consumer/" }],
+  },
+  {
+    id: "medical-support",
+    title: "When to Seek Medical Support",
+    subtitle: "Recognize concerns and prepare to talk with a clinician.",
+    icon: ClipboardList,
+    accent: "bg-[#f0eef8]",
+    sections: [
+      { title: "Pay attention to impact", body: "Very heavy bleeding, severe pain, faintness, or symptoms that disrupt school and everyday activities are good reasons to ask a trusted adult and healthcare professional for help." },
+      { title: "Prepare for a conversation", body: "You can share when symptoms started, how often they happen, how they affect you, and any questions you have. Notes can help you remember what you want to discuss." },
+      { title: "You deserve respectful care", body: "A clinician can listen, ask questions, and help decide whether an evaluation is needed. This information is educational and cannot replace personal medical advice." },
+    ],
+    sources: [{ label: "ACOG: Menstruation in Girls and Adolescents", href: "https://www.acog.org/clinical/clinical-guidance/committee-opinion/articles/2015/12/menstruation-in-girls-and-adolescents-using-the-menstrual-cycle-as-a-vital-sign" }],
+  },
+];
+
 const STORAGE_KEY = "omega-health-demo-state-v1";
 const todayKey = () => new Date().toISOString().slice(0, 10);
 
@@ -425,12 +633,20 @@ export default function HomePage() {
   const [noteError, setNoteError] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
   const noteSaveInProgress = useRef(false);
-  const [doctorNotesMenuOpen, setDoctorNotesMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [doctorNotesNotificationsOpen, setDoctorNotesNotificationsOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [appState, setAppState] = useState<AppState>(demoState);
   const [hasHydrated, setHasHydrated] = useState(false);
+  const [uiPreferences, setUiPreferences] = useState<UiPreferences>(defaultUiPreferences);
+  const [uiPreferencesHydrated, setUiPreferencesHydrated] = useState(false);
+  const [uiPreferencesError, setUiPreferencesError] = useState("");
+  const [epsilonOpen, setEpsilonOpen] = useState(false);
+  const [periodFeedback, setPeriodFeedback] = useState<string | null>(null);
+  const [educationCategoryId, setEducationCategoryId] = useState<string | null>(null);
+  const [nutritionSlide, setNutritionSlide] = useState(0);
+  const nutritionTouchStart = useRef<number | null>(null);
   const [wellnessTopic, setWellnessTopic] = useState<WellnessTopic | null>(null);
   const [wellnessPanel, setWellnessPanel] = useState<"overview" | "activity" | "energy">("overview");
   const [activityForm, setActivityForm] = useState({
@@ -469,7 +685,63 @@ export default function HomePage() {
     }
   }, [appState, hasHydrated]);
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(uiPreferencesStorageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<UiPreferences>;
+        setUiPreferences({
+          theme: parsed.theme === "dark" ? "dark" : "light",
+          textSize: parsed.textSize === "small" || parsed.textSize === "large" || parsed.textSize === "extra-large"
+            ? parsed.textSize
+            : "default",
+          readAloudEnabled: typeof parsed.readAloudEnabled === "boolean" ? parsed.readAloudEnabled : true,
+          speechRate: parsed.speechRate === 0.8 || parsed.speechRate === 1.2 ? parsed.speechRate : 1,
+        });
+      }
+    } catch {
+      setUiPreferencesError("Your saved accessibility preferences could not be read. Defaults are active.");
+    } finally {
+      setUiPreferencesHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = uiPreferences.theme;
+    document.documentElement.dataset.textSize = uiPreferences.textSize;
+  }, [uiPreferences.theme, uiPreferences.textSize]);
+
+  useEffect(() => {
+    if (!uiPreferencesHydrated) return;
+    try {
+      localStorage.setItem(uiPreferencesStorageKey, JSON.stringify(uiPreferences));
+    } catch {
+      setUiPreferencesError("Your preference change could not be saved. Check your browser storage settings.");
+    }
+  }, [uiPreferences, uiPreferencesHydrated]);
+
+  useEffect(() => {
+    if (!periodFeedback) return;
+    const timeoutId = window.setTimeout(() => setPeriodFeedback(null), 2200);
+    return () => window.clearTimeout(timeoutId);
+  }, [periodFeedback]);
+
   const symptomCount = appState.symptoms.length;
+  const nutritionCards = useMemo(() => {
+    const recentSymptoms = [...appState.symptoms].sort((a, b) => b.date.localeCompare(a.date));
+    const matched = new Map<string, NutritionRecommendation>();
+    recentSymptoms.forEach((symptom) => {
+      nutritionRecommendations.forEach((recommendation) => {
+        if (recommendation.symptoms.test(symptom.text) && !matched.has(recommendation.id)) {
+          matched.set(recommendation.id, recommendation);
+        }
+      });
+    });
+    return matched.size > 0 ? Array.from(matched.values()) : generalNutritionCards;
+  }, [appState.symptoms]);
+  useEffect(() => {
+    setNutritionSlide((current) => Math.min(current, nutritionCards.length - 1));
+  }, [nutritionCards.length]);
 
   const activePeriod = useMemo(
     () => [...appState.periods].sort((a, b) => (a.startDate > b.startDate ? -1 : 1)).find((period) => !period.endDate),
@@ -502,6 +774,7 @@ export default function HomePage() {
   }, [appState.periods]);
 
   const monthDays = useMemo(() => getMonthGrid(calendarMonth), [calendarMonth]);
+  const selectedEducationCategory = educationCategories.find((category) => category.id === educationCategoryId) ?? null;
   const dailyRecord = appState.dailyLogs[selectedDate] ?? {};
   const notesForSelected = appState.notes.filter((note) => note.title.toLowerCase().includes("school") || true);
   const activityHistory = useMemo(
@@ -527,17 +800,12 @@ export default function HomePage() {
     setScreen("app");
   };
 
-  const handlePeriodToggle = () => {
+  const handlePeriodStart = () => {
     const currentDate = todayKey();
     const existingOpen = appState.periods.find((period) => !period.endDate);
 
     if (existingOpen) {
-      setAppState((prev) => ({
-        ...prev,
-        periods: prev.periods.map((period) =>
-          period.id === existingOpen.id ? { ...period, endDate: currentDate } : period,
-        ),
-      }));
+      setPeriodFeedback("Your active period is already logged for today.");
       return;
     }
 
@@ -545,6 +813,30 @@ export default function HomePage() {
       ...prev,
       periods: [{ id: crypto.randomUUID(), startDate: currentDate, endDate: null }, ...prev.periods],
     }));
+    setPeriodFeedback("Period start saved for today.");
+  };
+
+  const handlePeriodEnd = () => {
+    const currentDate = todayKey();
+    const activePeriod = appState.periods.find((period) => !period.endDate);
+
+    if (!activePeriod) {
+      setPeriodFeedback("There is no active period to end.");
+      return;
+    }
+
+    if (activePeriod.startDate > currentDate) {
+      setPeriodFeedback("A future start date cannot be marked as ended.");
+      return;
+    }
+
+    setAppState((prev) => ({
+      ...prev,
+      periods: prev.periods.map((period) =>
+        period.id === activePeriod.id ? { ...period, endDate: currentDate } : period,
+      ),
+    }));
+    setPeriodFeedback("Period end saved for today.");
   };
 
   const handleSymptomSubmit = () => {
@@ -762,21 +1054,25 @@ export default function HomePage() {
             <h2 className={`${homeTypography.greeting} mt-3 text-4xl font-semibold tracking-[-0.04em] text-omega-ink md:text-5xl`}>{`Hello, ${appState.profile.preferredName}!`}</h2>
             <p className="mt-2 text-sm text-omega-slate">{formatHomeDate(todayKey())}</p>
           </div>
-          <div className="flex items-center gap-2 rounded-full bg-white/80 px-3 py-2 text-sm text-omega-purple shadow-soft">
-            <Sparkles className="h-4 w-4" />
-            <span>Gentle check-in</span>
+          <div className="flex flex-col items-start gap-2">
+            <button
+              type="button"
+              onClick={() => setEpsilonOpen(true)}
+              className="inline-flex items-center gap-2 rounded-full border border-omega-lilac bg-white/80 px-3 py-2 text-sm font-medium text-omega-purple shadow-soft transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+            >
+              <Sparkles className="h-4 w-4" />
+              <span>Check in with Epsilon</span>
+            </button>
+            <p className="text-sm text-omega-slate">Not feeling quite yourself? Epsilon is here to help you understand what&apos;s going on.</p>
           </div>
         </div>
 
         <div className="mt-6 grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
-          <div className="rounded-[26px] border border-omega-lilac/80 bg-white/80 p-5 shadow-soft backdrop-blur-sm">
+          <div className="rounded-[26px] border border-omega-lilac/80 bg-white/80 p-5 shadow-soft backdrop-blur-sm transition duration-200 hover:-translate-y-1 hover:shadow-lg">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.2em] text-omega-slate">Period countdown</p>
                 <p className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-omega-ink md:text-4xl">{periodSummary.title}</p>
-              </div>
-              <div className="rounded-full bg-omega-lavender px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-omega-purple">
-                {periodSummary.daysUntil === null ? "Est." : `${periodSummary.daysUntil}d`}
               </div>
             </div>
 
@@ -785,16 +1081,43 @@ export default function HomePage() {
                 <p className="text-[11px] uppercase tracking-[0.2em] text-omega-slate">{periodSummary.subtitle}</p>
                 <p className="mt-2 text-2xl font-semibold text-omega-purple">{periodSummary.date}</p>
               </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-omega-seafoam/60 text-omega-purple">
-                <Heart className="h-5 w-5" />
-              </div>
             </div>
+
+            <div className="mt-5 flex flex-wrap gap-3">
+              {!activePeriod ? (
+                <button
+                  type="button"
+                  onClick={handlePeriodStart}
+                  className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-omega-lavender to-omega-pink px-4 py-2.5 text-sm font-semibold text-omega-purple shadow-soft transition duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+                >
+                  My Period Started Today
+                </button>
+              ) : (
+                <>
+                  <div className="inline-flex items-center rounded-full border border-omega-lilac bg-omega-beige px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-omega-purple">
+                    Active period • {formatShortDate(activePeriod.startDate)}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handlePeriodEnd}
+                    className="inline-flex items-center justify-center rounded-full border border-omega-lilac bg-white px-4 py-2.5 text-sm font-semibold text-omega-purple transition duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                  >
+                    My Period Ended Today
+                  </button>
+                </>
+              )}
+            </div>
+
+            {periodFeedback ? (
+              <p className="mt-3 text-sm text-omega-purple">{periodFeedback}</p>
+            ) : null}
           </div>
 
           <div className="rounded-[26px] bg-omega-purple p-5 text-white shadow-soft">
             <p className="text-[11px] uppercase tracking-[0.2em] text-omega-lilac">Cycle status</p>
             <p className={`${homeTypography.heading} mt-3 text-2xl font-semibold tracking-[-0.04em]`}>{appState.profile.cycleType === "regular" ? "Regular rhythm" : appState.profile.cycleType === "irregular" ? "Flexible rhythm" : "Pattern in progress"}</p>
             <p className="mt-3 text-sm leading-6 text-omega-lilac">{periodSummary.detail}</p>
+            <ReadAloudButton text={periodSummary.detail} enabled={uiPreferences.readAloudEnabled} rate={uiPreferences.speechRate} className="mt-3" />
           </div>
         </div>
       </div>
@@ -863,9 +1186,6 @@ export default function HomePage() {
         <div className="space-y-4 rounded-[28px] border border-omega-lilac/60 bg-white p-4 shadow-soft md:p-5">
           <div className="flex items-center justify-between gap-3">
             <h3 className={`${homeTypography.bodyText} text-lg font-semibold text-omega-purple`}>{formatHomeDate(selectedDate)}</h3>
-            <button type="button" onClick={handlePeriodToggle} className="rounded-full bg-omega-purple px-3 py-2 text-xs font-semibold text-white">
-              {activePeriod ? "Ended today" : "Started now"}
-            </button>
           </div>
 
           <div className="rounded-[22px] bg-omega-beige p-4">
@@ -891,8 +1211,9 @@ export default function HomePage() {
                 key={option.label}
                 type="button"
                 onClick={() => handleMoodSelect(option.label)}
-                className={`flex flex-1 flex-col items-center gap-2 rounded-2xl border px-3 py-3 text-sm font-medium ${
-                  dailyRecord.mood === option.label ? "border-omega-purple bg-omega-lavender text-omega-purple" : "border-omega-lilac bg-omega-beige text-omega-ink"
+                aria-pressed={dailyRecord.mood === option.label}
+                className={`flex flex-1 flex-col items-center gap-2 rounded-2xl border px-3 py-3 text-sm font-medium transition-all duration-200 ease-out hover:-translate-y-1 hover:scale-[1.03] hover:shadow-[0_10px_28px_rgba(81,59,112,0.18)] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-omega-purple ${
+                  dailyRecord.mood === option.label ? "border-omega-purple bg-omega-lavender text-omega-purple shadow-[0_0_0_3px_rgba(217,201,238,0.65),0_8px_24px_rgba(81,59,112,0.14)]" : "border-omega-lilac bg-omega-beige text-omega-ink"
                 }`}
               >
                 <span className="text-2xl">{option.emoji}</span>
@@ -913,8 +1234,9 @@ export default function HomePage() {
                 key={option}
                 type="button"
                 onClick={() => handleFlowSelect(option)}
-                className={`rounded-2xl border px-3 py-2 text-sm font-medium ${
-                  dailyRecord.flow === option ? "border-omega-purple bg-omega-lavender text-omega-purple" : "border-omega-lilac bg-omega-beige text-omega-ink"
+                aria-pressed={dailyRecord.flow === option}
+                className={`rounded-2xl border px-3 py-2 text-sm font-medium transition-all duration-200 ease-out hover:-translate-y-1 hover:scale-[1.03] hover:shadow-[0_10px_28px_rgba(81,59,112,0.18)] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-omega-purple ${
+                  dailyRecord.flow === option ? "border-omega-purple bg-omega-lavender text-omega-purple shadow-[0_0_0_3px_rgba(217,201,238,0.65),0_8px_24px_rgba(81,59,112,0.14)]" : "border-omega-lilac bg-omega-beige text-omega-ink"
                 }`}
               >
                 {option}
@@ -932,12 +1254,11 @@ export default function HomePage() {
             value={symptomInput}
             onChange={(event) => setSymptomInput(event.target.value)}
             placeholder="Feeling bloated and tired..."
+            aria-label="Describe symptoms"
             className="mt-4 min-h-24 w-full rounded-2xl border border-omega-lilac bg-omega-beige p-3 text-sm text-omega-ink outline-none ring-0 placeholder:text-omega-slate"
           />
           <div className="mt-3 flex items-center justify-between gap-3">
-            <button type="button" className="rounded-full border border-omega-lilac bg-white p-2 text-omega-purple" aria-label="Voice entry unavailable">
-              <Mic className="h-4 w-4" />
-            </button>
+            <SpeechToTextButton onTranscript={(transcript) => setSymptomInput((previous) => `${previous}${previous && !/\s$/.test(previous) ? " " : ""}${transcript}`)} />
             <button type="button" onClick={handleSymptomSubmit} className="rounded-full bg-omega-purple px-4 py-2 text-sm font-semibold text-white">
               Save symptom
             </button>
@@ -1065,76 +1386,180 @@ export default function HomePage() {
     </div>
   );
 
-  const renderNutrition = () => (
-    <div className="space-y-6">
-      <div className="rounded-[30px] bg-omega-purple p-6 text-white shadow-soft">
-        <p className="text-sm uppercase tracking-[0.2em] text-omega-lilac">Nutrition</p>
-        <h2 className="mt-2 text-3xl font-semibold">Food and comfort support</h2>
-      </div>
+  const renderNutrition = () => {
+    const activeNutritionCard = nutritionCards[nutritionSlide] ?? nutritionCards[0];
+    const isPersonalized = activeNutritionCard && "id" in activeNutritionCard;
+    const moveNutritionSlide = (offset: number) => {
+      setNutritionSlide((current) => (current + offset + nutritionCards.length) % nutritionCards.length);
+    };
 
-      <div className="overflow-x-auto pb-2">
-        <div className="flex min-w-max gap-4">
-          {[
-            { title: "Iron-rich foods", text: "Beans, leafy greens, and lentils can help support a balanced diet.", icon: "🌿" },
-            { title: "Stay hydrated", text: "Water and hydrating snacks can help during heavier days.", icon: "💧" },
-            { title: "Balanced meals", text: "Pair carbs, protein, and fiber for steady energy.", icon: "🥗" },
-            { title: "Nausea support", text: "Small, bland snacks may feel easier on rough days.", icon: "🍚" },
-            { title: "School-day snacks", text: "Keep easy options ready for busy afternoons.", icon: "🥪" },
-          ].map((item) => (
-            <div key={item.title} className="w-72 rounded-[28px] bg-white p-5 shadow-soft">
-              <div className="text-4xl">{item.icon}</div>
-              <h3 className="mt-4 text-lg font-semibold text-omega-purple">{item.title}</h3>
-              <p className="mt-2 text-sm text-omega-slate">{item.text}</p>
+    return (
+      <div className={`${homeScript.variable} ${homeTypography.page} space-y-6`}>
+        <div className="rounded-[30px] bg-gradient-to-br from-omega-purple to-[#735b91] p-6 text-white shadow-soft">
+          <p className="text-sm uppercase tracking-[0.2em] text-omega-lilac">Nutrition</p>
+          <h2 className="mt-2 text-3xl font-semibold">Food and comfort support</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/85">Explore general nutrition education shaped by symptoms you have chosen to log. These ideas are not treatment plans.</p>
+        </div>
+
+        <section className="rounded-[30px] border border-omega-lilac/70 bg-white p-5 shadow-soft" aria-label="Nutrition guidance carousel">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-xl font-semibold text-omega-purple">{isPersonalized ? "Tips informed by your logged symptoms" : "Everyday nutrition education"}</h3>
+              <p className="mt-1 text-sm text-omega-slate">{isPersonalized ? "Based only on symptom text you entered in Home." : "Log a symptom in Home to see related general guidance here."}</p>
             </div>
-          ))}
+            <div className="flex gap-2">
+              <button type="button" onClick={() => moveNutritionSlide(-1)} aria-label="Previous nutrition card" className="rounded-full border border-omega-lilac bg-white p-2 text-omega-purple hover:bg-omega-lavender focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-omega-purple">
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button type="button" onClick={() => moveNutritionSlide(1)} aria-label="Next nutrition card" className="rounded-full border border-omega-lilac bg-white p-2 text-omega-purple hover:bg-omega-lavender focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-omega-purple">
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+
+          <div
+            className="overflow-hidden rounded-[26px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-omega-purple"
+            role="region"
+            aria-roledescription="carousel"
+            aria-label="Nutrition information"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowRight") {
+                event.preventDefault();
+                moveNutritionSlide(1);
+              } else if (event.key === "ArrowLeft") {
+                event.preventDefault();
+                moveNutritionSlide(-1);
+              }
+            }}
+            onTouchStart={(event) => {
+              nutritionTouchStart.current = event.touches[0]?.clientX ?? null;
+            }}
+            onTouchEnd={(event) => {
+              const startX = nutritionTouchStart.current;
+              const endX = event.changedTouches[0]?.clientX;
+              nutritionTouchStart.current = null;
+              if (startX === null || endX === undefined || Math.abs(endX - startX) < 45) return;
+              moveNutritionSlide(endX < startX ? 1 : -1);
+            }}
+          >
+            <div className="flex transition-transform duration-300 ease-out motion-reduce:transition-none" style={{ transform: `translateX(-${nutritionSlide * 100}%)` }}>
+              {nutritionCards.map((item, index) => {
+                const Icon = "icon" in item ? item.icon : HeartPulse;
+                const text = "text" in item ? item.text : "";
+                return (
+                  <article key={"id" in item ? item.id : item.title} className="w-full shrink-0 px-1" role="group" aria-roledescription="slide" aria-label={`${index + 1} of ${nutritionCards.length}`}>
+                    <div className="min-h-64 rounded-[28px] border border-omega-lilac/70 bg-gradient-to-br from-omega-lavender via-white to-omega-beige p-6 shadow-soft transition duration-200 hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(81,59,112,0.18)]">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-omega-purple shadow-sm">
+                        <Icon className="h-6 w-6" aria-hidden="true" />
+                      </div>
+                      <p className="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-omega-plum">{isPersonalized ? "Logged symptom insight" : "General guidance"}</p>
+                      <h4 className="mt-2 text-xl font-semibold text-omega-purple">{item.title}</h4>
+                      <p className="mt-2 max-w-3xl text-base leading-7 text-omega-ink">{text}</p>
+                      <ReadAloudButton text={`${item.title}. ${text}`} enabled={uiPreferences.readAloudEnabled} rate={uiPreferences.speechRate} className="mt-4" />
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-4 flex justify-center gap-2" aria-label="Choose nutrition card">
+            {nutritionCards.map((item, index) => (
+              <button
+                key={"id" in item ? item.id : item.title}
+                type="button"
+                onClick={() => setNutritionSlide(index)}
+                aria-label={`Show nutrition card ${index + 1}: ${item.title}`}
+                aria-current={nutritionSlide === index ? "true" : undefined}
+                className={`h-2.5 rounded-full transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-omega-purple ${nutritionSlide === index ? "w-7 bg-omega-purple" : "w-2.5 bg-omega-lilac hover:bg-omega-plum"}`}
+              />
+            ))}
+          </div>
+        </section>
+
+        <div className="rounded-[26px] border border-omega-lilac/70 bg-omega-beige/80 p-4 text-sm leading-6 text-omega-slate">
+          Nutrition guidance here is general education, not a diagnosis, treatment plan, supplement recommendation, or individualized diet. If a symptom is persistent or severe, talk with a trusted adult or healthcare professional.
+          <button type="button" onClick={() => setSection("dashboard")} className="ml-2 font-semibold text-omega-purple underline underline-offset-2">Log a symptom</button>
         </div>
       </div>
-
-      <div className="rounded-[30px] border border-omega-lilac/70 bg-white p-5 shadow-soft">
-        <h3 className="text-xl font-semibold text-omega-purple">Tips based on your symptoms</h3>
-        {symptomCount >= 3 ? (
-          <div className="mt-4 space-y-3">
-            <p className="rounded-2xl bg-omega-seafoam/30 p-3 text-sm text-omega-ink">Try gentle, regular meals and keep a hydration routine when you notice bloating or fatigue.</p>
-            <p className="rounded-2xl bg-omega-lavender p-3 text-sm text-omega-ink">Small, nourishing snacks can help on low-energy days without feeling overwhelming.</p>
-            <p className="rounded-2xl bg-omega-beige p-3 text-sm text-omega-ink">When cramps are strong, a warm drink or a lighter meal may feel easier on your body.</p>
-          </div>
-        ) : (
-          <div className="mt-4 rounded-[24px] bg-omega-beige p-5">
-            <p className="text-base font-medium text-omega-ink">{symptomCount} of 3 entries added</p>
-            <p className="mt-2 text-sm text-omega-slate">Log a few symptoms to unlock personalized nutrition guidance based on your history.</p>
-            <button type="button" onClick={() => setSection("dashboard")} className="mt-4 rounded-full bg-omega-purple px-4 py-2 text-sm font-semibold text-white">Log symptoms</button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+    );
+  };
 
   const renderEducation = () => (
-    <div className="space-y-6">
-      <div className="rounded-[30px] bg-omega-purple p-6 text-white shadow-soft">
+    <div className={`${homeScript.variable} ${homeTypography.page} space-y-6`}>
+      <div className="rounded-[30px] bg-gradient-to-br from-omega-purple to-[#735b91] p-6 text-white shadow-soft">
         <p className="text-sm uppercase tracking-[0.2em] text-omega-lilac">Teen education</p>
         <h2 className="mt-2 text-3xl font-semibold">Clear information for everyday life</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-white/85">Explore supportive, age-appropriate information. These resources are educational and are not a substitute for individual medical advice.</p>
       </div>
 
-      {[
-        {
-          title: "What’s happening to me?",
-          body: "Menstruation is a normal part of puberty and the body’s cycle. Over time, your cycle may vary because hormones, stress, sleep, and other lifestyle factors can influence timing.",
-        },
-        {
-          title: "Periods at school",
-          body: "A small kit with pads, liners, and a few extra pair of underwear can make a big difference. If you start unexpectedly, tell a trusted adult or school nurse and take breaks when you need them.",
-        },
-        {
-          title: "Pregnancy information",
-          body: "Pregnancy can happen if sperm meets an egg during a fertile window. Reliable information, access to contraception, and trusted health guidance can all help you make informed choices.",
-        },
-      ].map((item) => (
-        <div key={item.title} className="rounded-[28px] border border-omega-lilac/70 bg-white p-5 shadow-soft">
-          <h3 className="text-xl font-semibold text-omega-purple">{item.title}</h3>
-          <p className="mt-3 text-sm leading-7 text-omega-ink">{item.body}</p>
+      {selectedEducationCategory ? (
+        <article className="space-y-5">
+          <div className="rounded-[28px] border border-omega-lilac/70 bg-white p-5 shadow-soft">
+            <button type="button" onClick={() => setEducationCategoryId(null)} className="mb-4 inline-flex items-center gap-2 rounded-full border border-omega-lilac px-3 py-2 text-sm font-medium text-omega-purple hover:bg-omega-lavender focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-omega-purple">
+              <ChevronLeft className="h-4 w-4" /> All topics
+            </button>
+            <div className="flex items-start gap-4">
+              <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${selectedEducationCategory.accent} text-omega-purple`}>
+                <selectedEducationCategory.icon className="h-7 w-7" aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm text-omega-slate">{selectedEducationCategory.subtitle}</p>
+                <h2 className="mt-1 text-3xl font-semibold text-omega-purple">{selectedEducationCategory.title}</h2>
+              </div>
+            </div>
+          </div>
+
+          {selectedEducationCategory.sections.map((section) => (
+            <section key={section.title} className="rounded-[26px] border border-omega-lilac/70 bg-white p-5 shadow-soft">
+              <h3 className="text-xl font-semibold text-omega-purple">{section.title}</h3>
+              <p className="mt-3 text-base leading-7 text-omega-ink">{section.body}</p>
+              <ReadAloudButton text={`${section.title}. ${section.body}`} enabled={uiPreferences.readAloudEnabled} rate={uiPreferences.speechRate} className="mt-4" />
+            </section>
+          ))}
+
+          <section className="rounded-[26px] border border-omega-lilac/70 bg-omega-lavender/70 p-5">
+            <h3 className="text-lg font-semibold text-omega-purple">Trusted resources</h3>
+            <div className="mt-3 flex flex-wrap gap-3">
+              {selectedEducationCategory.sources.map((source) => (
+                <a key={source.href} href={source.href} target="_blank" rel="noreferrer" className="rounded-full border border-omega-lilac bg-white px-4 py-2 text-sm font-medium text-omega-purple underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-omega-purple">
+                  {source.label}
+                </a>
+              ))}
+            </div>
+          </section>
+
+          <div className="rounded-[28px] bg-gradient-to-r from-omega-lavender to-omega-beige p-5 shadow-soft">
+            <h3 className="text-xl font-semibold text-omega-purple">Want to explore this topic?</h3>
+            <p className="mt-2 text-sm leading-6 text-omega-slate">Epsilon can help you find the right place in the app and answer general questions. No personal health history is sent automatically.</p>
+            <button type="button" onClick={() => setEpsilonOpen(true)} className="mt-4 rounded-full bg-omega-purple px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-omega-purple">
+              Get More Info
+            </button>
+          </div>
+        </article>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {educationCategories.map((category) => {
+            const Icon = category.icon;
+            return (
+              <button
+                key={category.id}
+                type="button"
+                onClick={() => setEducationCategoryId(category.id)}
+                className="group min-h-52 rounded-[28px] border border-omega-lilac/70 bg-white p-5 text-left shadow-soft transition-all duration-200 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:shadow-[0_16px_40px_rgba(81,59,112,0.18)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-omega-purple motion-reduce:transform-none"
+              >
+                <span className={`flex h-14 w-14 items-center justify-center rounded-2xl ${category.accent} text-omega-purple transition-transform duration-200 group-hover:scale-105`}>
+                  <Icon className="h-7 w-7" aria-hidden="true" />
+                </span>
+                <h3 className="mt-4 text-xl font-semibold text-omega-purple">{category.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-omega-slate">{category.subtitle}</p>
+                <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-omega-plum">Explore topic <ArrowRight className="h-4 w-4" aria-hidden="true" /></span>
+              </button>
+            );
+          })}
         </div>
-      ))}
+      )}
     </div>
   );
 
@@ -1507,13 +1932,71 @@ export default function HomePage() {
   };
 
   const renderSettings = () => (
-    <div className="space-y-6">
+    <div className={`${homeScript.variable} ${homeTypography.page} space-y-6`}>
       <div className="rounded-[30px] bg-omega-purple p-6 text-white shadow-soft">
         <p className="text-sm uppercase tracking-[0.2em] text-omega-lilac">Settings</p>
         <h2 className="mt-2 text-3xl font-semibold">Your privacy and preferences</h2>
       </div>
 
       <div className="space-y-4 rounded-[30px] border border-omega-lilac/70 bg-white p-5 shadow-soft">
+        <section className="rounded-2xl border border-omega-lilac/70 bg-gradient-to-br from-omega-lavender to-omega-beige p-4" aria-labelledby="appearance-accessibility-title">
+          <h3 id="appearance-accessibility-title" className="text-lg font-semibold text-omega-purple">Appearance & accessibility</h3>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm font-semibold text-omega-ink">
+              Color theme
+              <select
+                value={uiPreferences.theme}
+                onChange={(event) => setUiPreferences((previous) => ({ ...previous, theme: event.target.value as ThemePreference }))}
+                className="mt-2 w-full rounded-xl border border-omega-lilac bg-white px-3 py-2 text-sm font-normal text-omega-ink outline-none focus-visible:ring-2 focus-visible:ring-omega-purple"
+              >
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </label>
+            <label className="block text-sm font-semibold text-omega-ink">
+              Text size
+              <select
+                value={uiPreferences.textSize}
+                onChange={(event) => setUiPreferences((previous) => ({ ...previous, textSize: event.target.value as TextSizePreference }))}
+                className="mt-2 w-full rounded-xl border border-omega-lilac bg-white px-3 py-2 text-sm font-normal text-omega-ink outline-none focus-visible:ring-2 focus-visible:ring-omega-purple"
+              >
+                <option value="small">Small</option>
+                <option value="default">Default</option>
+                <option value="large">Large</option>
+                <option value="extra-large">Extra large</option>
+              </select>
+            </label>
+          </div>
+          <div className="mt-4 rounded-xl bg-white/70 p-3">
+            <label className="flex items-start gap-3 text-sm font-semibold text-omega-ink">
+              <input
+                type="checkbox"
+                checked={uiPreferences.readAloudEnabled}
+                onChange={(event) => setUiPreferences((previous) => ({ ...previous, readAloudEnabled: event.target.checked }))}
+                className="mt-1 h-4 w-4 accent-[#513B70]"
+              />
+              <span>
+                Enable read-aloud controls
+                <span className="mt-1 block text-sm font-normal leading-6 text-omega-slate">Speech plays only when you choose a read-aloud button. The browser’s built-in speech service is used.</span>
+              </span>
+            </label>
+            <label className={`mt-3 block text-sm font-semibold text-omega-ink ${uiPreferences.readAloudEnabled ? "" : "opacity-60"}`}>
+              Speech rate
+              <select
+                value={uiPreferences.speechRate}
+                disabled={!uiPreferences.readAloudEnabled}
+                onChange={(event) => setUiPreferences((previous) => ({ ...previous, speechRate: Number(event.target.value) }))}
+                className="mt-2 w-full rounded-xl border border-omega-lilac bg-white px-3 py-2 text-sm font-normal text-omega-ink outline-none focus-visible:ring-2 focus-visible:ring-omega-purple disabled:cursor-not-allowed"
+              >
+                <option value={0.8}>Slower</option>
+                <option value={1}>Normal</option>
+                <option value={1.2}>Faster</option>
+              </select>
+            </label>
+          </div>
+          {uiPreferencesError ? <p className="mt-3 text-sm text-red-700" role="alert">{uiPreferencesError}</p> : null}
+        </section>
+
         <div className="flex items-center justify-between gap-3 rounded-2xl bg-omega-beige p-4">
           <div>
             <p className="text-sm font-semibold text-omega-ink">Preferred name</p>
@@ -1787,7 +2270,7 @@ export default function HomePage() {
             </div>
           </section>
         </div>
-      <EpsilonChat onNavigate={destination => {setSection(destination);setScreen('app');}} inApp={false} />
+      <EpsilonChat onNavigate={destination => {setSection(destination);setScreen('app');}} inApp={false} isOpen={epsilonOpen} onOpenChange={setEpsilonOpen} />
 </main>
     );
   }
@@ -1838,13 +2321,13 @@ export default function HomePage() {
             Back
           </button>
         </div>
-      <EpsilonChat onNavigate={destination => {setSection(destination);setScreen('app');}} inApp={false} />
+      <EpsilonChat onNavigate={destination => {setSection(destination);setScreen('app');}} inApp={false} isOpen={epsilonOpen} onOpenChange={setEpsilonOpen} />
 </main>
     );
   }
 
   if (screen === "onboarding") {
-    return <>{onboardingPage}<EpsilonChat onNavigate={destination => {setSection(destination);setScreen('app');}} inApp={false} /></>;
+    return <>{onboardingPage}<EpsilonChat onNavigate={destination => {setSection(destination);setScreen('app');}} inApp={false} isOpen={epsilonOpen} onOpenChange={setEpsilonOpen} /></>;
   }
 
   return (
@@ -1855,7 +2338,7 @@ export default function HomePage() {
             <div className="w-full rounded-2xl bg-white px-5 py-3"><Image src="/omegahealth-logo.png" width={200} height={139} alt="Omega Health" priority className="mx-auto h-auto w-40" /></div>
           </div>
 
-          <nav className="mt-8 space-y-2">
+          <nav className={`${homeTypography.bodyText} mt-8 space-y-2`}>
             {navItems.map(({ label, key, icon: Icon }) => (
               <button
                 key={key}
@@ -1877,22 +2360,20 @@ export default function HomePage() {
           </div>
         </aside>
 
-        <div className={`flex-1 rounded-[30px] bg-[#fffaf5] p-4 shadow-soft md:p-6 ${section === "dashboard" ? "min-w-0" : ""}`}>
+        <div className="min-w-0 flex-1 rounded-[30px] bg-[#fffaf5] p-4 shadow-soft md:p-6">
           <header className="flex items-center justify-between gap-3 border-b border-omega-lilac/60 pb-4">
             <div className="flex items-center gap-3">
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (section === "doctor-notes") setDoctorNotesMenuOpen((open) => !open);
-                  }}
+                  onClick={() => setMobileMenuOpen((open) => !open)}
                   aria-label="Open navigation menu"
-                  aria-expanded={section === "doctor-notes" && doctorNotesMenuOpen}
+                  aria-expanded={mobileMenuOpen}
                   className="rounded-full border border-omega-lilac bg-white p-2 lg:hidden"
                 >
                   <Menu className="h-5 w-5 text-omega-purple" />
                 </button>
-                {section === "doctor-notes" && doctorNotesMenuOpen ? (
+                {mobileMenuOpen ? (
                   <nav className="absolute left-0 top-full z-30 mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-omega-lilac bg-white p-2 shadow-soft" aria-label="App sections">
                     {navItems.map(({ label, key, icon: Icon }) => (
                       <button
@@ -1900,7 +2381,7 @@ export default function HomePage() {
                         type="button"
                         onClick={() => {
                           setSection(key);
-                          setDoctorNotesMenuOpen(false);
+                          setMobileMenuOpen(false);
                           setDoctorNotesNotificationsOpen(false);
                         }}
                         className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium text-omega-ink hover:bg-omega-beige"
@@ -1912,7 +2393,7 @@ export default function HomePage() {
                   </nav>
                 ) : null}
               </div>
-              <div className={section === "dashboard" ? `${homeScript.variable} ${homeTypography.header}` : undefined}>
+              <div className={`${homeScript.variable} ${homeTypography.header}`}>
                 <p className="text-xs uppercase tracking-[0.2em] text-omega-slate">{section === "doctor-notes" ? "Doctor Notes" : "Dashboard"}</p>
                 <h1 className="mt-1 text-2xl font-semibold text-omega-ink">{`Welcome, ${appState.profile.preferredName}!`}</h1>
               </div>
@@ -1948,7 +2429,7 @@ export default function HomePage() {
 
           <div className="mt-6 pb-20 lg:pb-6">{renderContent()}</div>
 
-          <nav className="fixed inset-x-3 bottom-3 z-20 grid grid-cols-4 gap-2 rounded-[24px] border border-omega-lilac/60 bg-white/90 p-2 shadow-soft backdrop-blur-md lg:hidden">
+          <nav className={`${homeTypography.bodyText} fixed inset-x-3 bottom-3 z-20 grid grid-cols-4 gap-2 rounded-[24px] border border-omega-lilac/60 bg-white/90 p-2 shadow-soft backdrop-blur-md lg:hidden`}>
             {[
               { label: "Home", key: "dashboard", icon: Home },
               { label: "Notes", key: "doctor-notes", icon: NotebookPen },
@@ -1987,7 +2468,7 @@ export default function HomePage() {
           </div>
         </div>
       ) : null}
-    <EpsilonChat onNavigate={destination => {setSection(destination);setScreen('app');}} inApp={true} />
+    <EpsilonChat onNavigate={destination => {setSection(destination);setScreen('app');}} inApp={true} isOpen={epsilonOpen} onOpenChange={setEpsilonOpen} />
 </main>
   );
 }
