@@ -1,4 +1,5 @@
 "use client";
+import {estimateCycle} from "../components/cycle-estimate";
 import Image from 'next/image';
 import EpsilonChat from '../components/EpsilonChat';
 import ReadAloudButton from '../components/ReadAloudButton';
@@ -80,6 +81,7 @@ interface SymptomEntry {
 }
 
 interface DailyLog {
+  nutrition?: string;
   mood?: Mood;
   flow?: Flow;
 }
@@ -462,7 +464,7 @@ const educationCategories: EducationCategory[] = [
 ];
 
 const STORAGE_KEY = "omega-health-demo-state-v1";
-const todayKey = () => new Date().toISOString().slice(0, 10);
+const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 
 const initialProfile: Profile = {
   preferredName: "Ava",
@@ -551,52 +553,6 @@ function formatHomeDate(dateValue: string) {
   const day = String(date.getDate()).padStart(2, "0");
   const year = String(date.getFullYear()).slice(-2);
   return `${month}/${day}/${year}`;
-}
-
-function getAverageCycleLength(periods: PeriodRecord[]) {
-  const sortedDates = [...periods]
-    .map((period) => period.startDate)
-    .filter(Boolean)
-    .sort((a, b) => a.localeCompare(b));
-
-  if (sortedDates.length < 2) return null;
-
-  const cycleLengths = [] as number[];
-  for (let index = 1; index < sortedDates.length; index += 1) {
-    const previous = new Date(`${sortedDates[index - 1]}T12:00:00`).getTime();
-    const current = new Date(`${sortedDates[index]}T12:00:00`).getTime();
-    const length = Math.round((current - previous) / 86400000);
-    if (length > 0) {
-      cycleLengths.push(length);
-    }
-  }
-
-  if (cycleLengths.length === 0) return null;
-
-  const average = cycleLengths.reduce((total, length) => total + length, 0) / cycleLengths.length;
-  return Number.isFinite(average) && average > 0 ? average : null;
-}
-
-function getPredictedNextPeriodDate(periods: PeriodRecord[]) {
-  const sorted = [...periods]
-    .filter((period) => Boolean(period.startDate))
-    .sort((a, b) => a.startDate.localeCompare(b.startDate));
-
-  if (sorted.length === 0) return null;
-
-  const lastStart = sorted[sorted.length - 1];
-  const averageCycleLength = getAverageCycleLength(sorted);
-  if (!averageCycleLength) return null;
-
-  let predicted = new Date(`${lastStart.startDate}T12:00:00`);
-  predicted = new Date(predicted.getTime() + averageCycleLength * 86400000);
-
-  const today = new Date(`${todayKey()}T12:00:00`);
-  while (predicted.getTime() <= today.getTime()) {
-    predicted = new Date(predicted.getTime() + averageCycleLength * 86400000);
-  }
-
-  return predicted;
 }
 
 function getMonthGrid(date: Date) {
@@ -748,30 +704,7 @@ export default function HomePage() {
     [appState.periods],
   );
 
-  const periodSummary = useMemo(() => {
-    const predictedDate = getPredictedNextPeriodDate(appState.periods);
-
-    if (!predictedDate) {
-      return {
-        title: "Add your period dates to see your prediction.",
-        subtitle: "Predicted start",
-        date: "—",
-        detail: "Log a few recent period starts to estimate your next cycle more accurately.",
-        daysUntil: null,
-      };
-    }
-
-    const today = new Date(`${todayKey()}T12:00:00`);
-    const daysUntil = Math.max(0, Math.round((predictedDate.getTime() - today.getTime()) / 86400000));
-
-    return {
-      title: daysUntil === 0 ? "Period today" : `Period in ${daysUntil} day${daysUntil === 1 ? "" : "s"}`,
-      subtitle: "Predicted start",
-      date: formatHomeDate(dateKeyFromDate(predictedDate)),
-      detail: "Based on your recent period history and a cautious estimate, not a medical prediction.",
-      daysUntil,
-    };
-  }, [appState.periods]);
+  const periodSummary = estimateCycle(appState, todayKey());
 
   const monthDays = useMemo(() => getMonthGrid(calendarMonth), [calendarMonth]);
   const selectedEducationCategory = educationCategories.find((category) => category.id === educationCategoryId) ?? null;
@@ -1071,7 +1004,7 @@ export default function HomePage() {
           <div className="rounded-[26px] border border-omega-lilac/80 bg-white/80 p-5 shadow-soft backdrop-blur-sm transition duration-200 hover:-translate-y-1 hover:shadow-lg">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.2em] text-omega-slate">Period countdown</p>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-omega-slate">Period estimate</p>
                 <p className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-omega-ink md:text-4xl">{periodSummary.title}</p>
               </div>
             </div>
@@ -1221,6 +1154,11 @@ export default function HomePage() {
               </button>
             ))}
           </div>
+          <label className="mt-5 block text-sm font-medium text-omega-ink">Nutrition check-in
+            <select aria-label="Nutrition check-in" value={dailyRecord.nutrition ?? ""} onChange={event => setAppState(prev => ({...prev,dailyLogs:{...prev.dailyLogs,[selectedDate]:{...prev.dailyLogs[selectedDate],nutrition:event.target.value || undefined}}}))} className="mt-2 w-full rounded-xl border border-omega-lilac bg-omega-beige p-3">
+              <option value="">Not logged</option><option value="Usual eating pattern">Usual eating pattern</option><option value="Appetite lower than usual">Appetite lower than usual</option><option value="Appetite higher than usual">Appetite higher than usual</option><option value="Meal routine changed">Meal routine changed</option>
+            </select>
+          </label>
         </div>
 
         <div className="rounded-[26px] border border-omega-lilac/60 bg-white p-4 shadow-soft">
