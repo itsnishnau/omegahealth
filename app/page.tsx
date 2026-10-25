@@ -3,7 +3,9 @@ import Image from 'next/image';
 import EpsilonChat from '../components/EpsilonChat';
 import './epsilon.css';
 
+import { Dancing_Script } from "next/font/google";
 import { useEffect, useMemo, useRef, useState } from "react";
+import homeTypography from "./home-typography.module.css";
 import {
   ArrowRight,
   Bell,
@@ -33,6 +35,13 @@ import {
   Utensils,
   X,
 } from "lucide-react";
+
+const homeScript = Dancing_Script({
+  subsets: ["latin"],
+  display: "swap",
+  preload: false,
+  variable: "--font-home-script",
+});
 
 type Screen = "welcome" | "auth" | "onboarding" | "app";
 type Section = "dashboard" | "doctor-notes" | "nutrition" | "education" | "wellness" | "settings";
@@ -318,10 +327,68 @@ function formatNoteDate(dateValue: string) {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(date);
 }
 
-function getDifferenceInDays(start: string, end: string) {
-  const from = new Date(`${start}T12:00:00`);
-  const to = new Date(`${end}T12:00:00`);
-  return Math.round((to.getTime() - from.getTime()) / 86400000);
+function dateKeyFromDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatHomeDate(dateValue: string) {
+  if (!dateValue) return "—";
+  const date = new Date(`${dateValue}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const year = String(date.getFullYear()).slice(-2);
+  return `${month}/${day}/${year}`;
+}
+
+function getAverageCycleLength(periods: PeriodRecord[]) {
+  const sortedDates = [...periods]
+    .map((period) => period.startDate)
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+
+  if (sortedDates.length < 2) return null;
+
+  const cycleLengths = [] as number[];
+  for (let index = 1; index < sortedDates.length; index += 1) {
+    const previous = new Date(`${sortedDates[index - 1]}T12:00:00`).getTime();
+    const current = new Date(`${sortedDates[index]}T12:00:00`).getTime();
+    const length = Math.round((current - previous) / 86400000);
+    if (length > 0) {
+      cycleLengths.push(length);
+    }
+  }
+
+  if (cycleLengths.length === 0) return null;
+
+  const average = cycleLengths.reduce((total, length) => total + length, 0) / cycleLengths.length;
+  return Number.isFinite(average) && average > 0 ? average : null;
+}
+
+function getPredictedNextPeriodDate(periods: PeriodRecord[]) {
+  const sorted = [...periods]
+    .filter((period) => Boolean(period.startDate))
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
+
+  if (sorted.length === 0) return null;
+
+  const lastStart = sorted[sorted.length - 1];
+  const averageCycleLength = getAverageCycleLength(sorted);
+  if (!averageCycleLength) return null;
+
+  let predicted = new Date(`${lastStart.startDate}T12:00:00`);
+  predicted = new Date(predicted.getTime() + averageCycleLength * 86400000);
+
+  const today = new Date(`${todayKey()}T12:00:00`);
+  while (predicted.getTime() <= today.getTime()) {
+    predicted = new Date(predicted.getTime() + averageCycleLength * 86400000);
+  }
+
+  return predicted;
 }
 
 function getMonthGrid(date: Date) {
@@ -409,33 +476,30 @@ export default function HomePage() {
     [appState.periods],
   );
 
-  const latestPeriodStart = useMemo(
-    () => [...appState.periods].sort((a, b) => (a.startDate > b.startDate ? -1 : 1))[0]?.startDate,
-    [appState.periods],
-  );
+  const periodSummary = useMemo(() => {
+    const predictedDate = getPredictedNextPeriodDate(appState.periods);
 
-  const dayStatus = useMemo(() => {
-    if (!latestPeriodStart) {
+    if (!predictedDate) {
       return {
-        title: "Add cycle dates to get an estimate.",
-        detail: "Your history is still too short for a meaningful period estimate.",
+        title: "Add your period dates to see your prediction.",
+        subtitle: "Predicted start",
+        date: "—",
+        detail: "Log a few recent period starts to estimate your next cycle more accurately.",
+        daysUntil: null,
       };
     }
 
-    const daysSinceLast = getDifferenceInDays(latestPeriodStart, todayKey());
-
-    if (appState.profile.cycleType === "regular") {
-      return {
-        title: `Your next period may begin around ${new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)}`,
-        detail: "Based on your recent period history and a cautious estimate, not a medical prediction.",
-      };
-    }
+    const today = new Date(`${todayKey()}T12:00:00`);
+    const daysUntil = Math.max(0, Math.round((predictedDate.getTime() - today.getTime()) / 86400000));
 
     return {
-      title: `Days since last recorded period: ${daysSinceLast}`,
-      detail: "Log more dates to build a clearer window and look for patterns over time.",
+      title: daysUntil === 0 ? "Period today" : `Period in ${daysUntil} day${daysUntil === 1 ? "" : "s"}`,
+      subtitle: "Predicted start",
+      date: formatHomeDate(dateKeyFromDate(predictedDate)),
+      detail: "Based on your recent period history and a cautious estimate, not a medical prediction.",
+      daysUntil,
     };
-  }, [appState.periods, appState.profile.cycleType]);
+  }, [appState.periods]);
 
   const monthDays = useMemo(() => getMonthGrid(calendarMonth), [calendarMonth]);
   const dailyRecord = appState.dailyLogs[selectedDate] ?? {};
@@ -690,30 +754,54 @@ export default function HomePage() {
   };
 
   const renderDashboard = () => (
-    <div className="space-y-6">
-      <div className="rounded-[28px] bg-gradient-to-br from-omega-purple via-omega-purple to-omega-plum p-6 text-white shadow-soft">
-        <div className="flex items-start justify-between gap-4">
+    <div className={`${homeScript.variable} ${homeTypography.page} space-y-6`}>
+      <div className="rounded-[30px] border border-omega-lilac/60 bg-[#f4edf9] p-5 shadow-soft md:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-sm uppercase tracking-[0.2em] text-omega-lilac">Welcome</p>
-            <h2 className="mt-2 text-3xl font-semibold">{`Hello, ${appState.profile.preferredName}!`}</h2>
+            <p className="text-[11px] uppercase tracking-[0.26em] text-omega-plum">Today</p>
+            <h2 className={`${homeTypography.greeting} mt-3 text-4xl font-semibold tracking-[-0.04em] text-omega-ink md:text-5xl`}>{`Hello, ${appState.profile.preferredName}!`}</h2>
+            <p className="mt-2 text-sm text-omega-slate">{formatHomeDate(todayKey())}</p>
           </div>
-          <div className="rounded-full border border-white/20 bg-white/10 p-3">
-            <Sparkles className="h-6 w-6" />
+          <div className="flex items-center gap-2 rounded-full bg-white/80 px-3 py-2 text-sm text-omega-purple shadow-soft">
+            <Sparkles className="h-4 w-4" />
+            <span>Gentle check-in</span>
           </div>
         </div>
-        <div className="mt-5 rounded-2xl bg-white/10 p-4 backdrop-blur-sm">
-          <div className="flex items-center gap-3 text-omega-lilac">
-            <Heart className="h-5 w-5" />
-            <span className="text-sm font-medium">Cycle status</span>
+
+        <div className="mt-6 grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
+          <div className="rounded-[26px] border border-omega-lilac/80 bg-white/80 p-5 shadow-soft backdrop-blur-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-omega-slate">Period countdown</p>
+                <p className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-omega-ink md:text-4xl">{periodSummary.title}</p>
+              </div>
+              <div className="rounded-full bg-omega-lavender px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-omega-purple">
+                {periodSummary.daysUntil === null ? "Est." : `${periodSummary.daysUntil}d`}
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-end justify-between gap-3 border-t border-omega-lilac/80 pt-4">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-omega-slate">{periodSummary.subtitle}</p>
+                <p className="mt-2 text-2xl font-semibold text-omega-purple">{periodSummary.date}</p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-omega-seafoam/60 text-omega-purple">
+                <Heart className="h-5 w-5" />
+              </div>
+            </div>
           </div>
-          <p className="mt-3 text-xl font-semibold">{dayStatus.title}</p>
-          <p className="mt-2 text-sm text-omega-lilac">{dayStatus.detail}</p>
+
+          <div className="rounded-[26px] bg-omega-purple p-5 text-white shadow-soft">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-omega-lilac">Cycle status</p>
+            <p className={`${homeTypography.heading} mt-3 text-2xl font-semibold tracking-[-0.04em]`}>{appState.profile.cycleType === "regular" ? "Regular rhythm" : appState.profile.cycleType === "irregular" ? "Flexible rhythm" : "Pattern in progress"}</p>
+            <p className="mt-3 text-sm leading-6 text-omega-lilac">{periodSummary.detail}</p>
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.4fr_0.6fr]">
-        <div className="rounded-[28px] border border-omega-lilac/60 bg-white p-4 shadow-soft">
-          <div className="mb-4 flex items-center justify-between">
+      <div className="grid gap-4 lg:grid-cols-[1.45fr_0.55fr]">
+        <div className="rounded-[28px] border border-omega-lilac/60 bg-white p-4 shadow-soft md:p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-omega-purple">
               <CalendarRange className="h-5 w-5" />
               <h3 className="text-lg font-semibold">Calendar</h3>
@@ -726,7 +814,7 @@ export default function HomePage() {
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <span className="min-w-[120px] text-center text-sm font-medium">
+              <span className="min-w-[120px] text-center text-sm font-medium text-omega-ink">
                 {new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(calendarMonth)}
               </span>
               <button
@@ -739,7 +827,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-7 gap-2 text-center text-xs font-medium uppercase tracking-[0.15em] text-omega-slate">
+          <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-medium uppercase tracking-[0.18em] text-omega-slate">
             {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
               <div key={day}>{day}</div>
             ))}
@@ -760,7 +848,7 @@ export default function HomePage() {
                   onClick={() => setSelectedDate(dateKey)}
                   className={`flex h-12 items-center justify-center rounded-2xl border text-sm font-medium transition ${
                     !day.inCurrentMonth ? "text-omega-slate/40" : "text-omega-ink"
-                  } ${isSelected ? "border-omega-purple bg-omega-lavender text-omega-purple" : "border-transparent bg-omega-beige/70"} ${isToday ? "ring-2 ring-omega-seafoam" : ""} ${hasPeriod ? "shadow-inner bg-omega-seafoam/40" : ""}`}
+                  } ${isSelected ? "border-omega-purple bg-omega-lavender text-omega-purple" : "border-transparent bg-omega-beige/70"} ${isToday ? "ring-2 ring-omega-seafoam" : ""} ${hasPeriod ? "bg-omega-seafoam/35 shadow-inner" : ""}`}
                 >
                   <span className="relative">
                     {day.value}
@@ -772,26 +860,26 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="space-y-4 rounded-[28px] border border-omega-lilac/60 bg-white p-4 shadow-soft">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-omega-purple">{formatShortDate(selectedDate)}</h3>
+        <div className="space-y-4 rounded-[28px] border border-omega-lilac/60 bg-white p-4 shadow-soft md:p-5">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className={`${homeTypography.bodyText} text-lg font-semibold text-omega-purple`}>{formatHomeDate(selectedDate)}</h3>
             <button type="button" onClick={handlePeriodToggle} className="rounded-full bg-omega-purple px-3 py-2 text-xs font-semibold text-white">
               {activePeriod ? "Ended today" : "Started now"}
             </button>
           </div>
 
-          <div className="rounded-2xl bg-omega-beige p-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-omega-slate">Daily details</p>
+          <div className="rounded-[22px] bg-omega-beige p-4">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-omega-slate">Daily details</p>
             <div className="mt-3 space-y-2 text-sm text-omega-ink">
-              <p>Flow: {dailyRecord.flow ?? "Not logged"}</p>
-              <p>Mood: {dailyRecord.mood ?? "Not logged"}</p>
-              <p>Symptoms: {appState.symptoms.filter((entry) => entry.date === selectedDate).length || 0} saved</p>
+              <p><span className="font-medium">Flow:</span> {dailyRecord.flow ?? "Not logged"}</p>
+              <p><span className="font-medium">Mood:</span> {dailyRecord.mood ?? "Not logged"}</p>
+              <p><span className="font-medium">Symptoms:</span> {appState.symptoms.filter((entry) => entry.date === selectedDate).length || 0} saved</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 xl:grid-cols-3">
         <div className="rounded-[26px] border border-omega-lilac/60 bg-white p-4 shadow-soft">
           <div className="flex items-center gap-3 text-omega-purple">
             <Heart className="h-5 w-5" />
@@ -858,7 +946,7 @@ export default function HomePage() {
       </div>
 
       <div className="rounded-[28px] border border-omega-lilac/60 bg-white p-4 shadow-soft">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <h3 className="text-lg font-semibold text-omega-purple">Quick history</h3>
           <div className="text-sm text-omega-slate">{symptomCount} symptom entries</div>
         </div>
@@ -867,9 +955,9 @@ export default function HomePage() {
             <div key={entry.id} className="flex items-start justify-between gap-3 rounded-2xl bg-omega-beige p-3">
               <div>
                 <p className="text-sm font-medium text-omega-ink">{entry.text}</p>
-                <p className="mt-1 text-xs text-omega-slate">{formatShortDate(entry.date)}</p>
+                <p className="mt-1 text-xs text-omega-slate">{formatHomeDate(entry.date)}</p>
               </div>
-              <button type="button" className="text-omega-purple">
+              <button type="button" className="text-omega-purple" aria-label={`Edit symptom from ${formatHomeDate(entry.date)}`}>
                 <Pencil className="h-4 w-4" />
               </button>
             </div>
@@ -1789,7 +1877,7 @@ export default function HomePage() {
           </div>
         </aside>
 
-        <div className="flex-1 rounded-[30px] bg-[#fffaf5] p-4 shadow-soft md:p-6">
+        <div className={`flex-1 rounded-[30px] bg-[#fffaf5] p-4 shadow-soft md:p-6 ${section === "dashboard" ? "min-w-0" : ""}`}>
           <header className="flex items-center justify-between gap-3 border-b border-omega-lilac/60 pb-4">
             <div className="flex items-center gap-3">
               <div className="relative">
@@ -1824,7 +1912,7 @@ export default function HomePage() {
                   </nav>
                 ) : null}
               </div>
-              <div>
+              <div className={section === "dashboard" ? `${homeScript.variable} ${homeTypography.header}` : undefined}>
                 <p className="text-xs uppercase tracking-[0.2em] text-omega-slate">{section === "doctor-notes" ? "Doctor Notes" : "Dashboard"}</p>
                 <h1 className="mt-1 text-2xl font-semibold text-omega-ink">{`Welcome, ${appState.profile.preferredName}!`}</h1>
               </div>
