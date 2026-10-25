@@ -74,9 +74,163 @@ interface Note {
 interface WellnessEntry {
   id: string;
   date: string;
-  activity: string;
-  energy: "Low" | "Moderate" | "High";
+  activity?: string;
+  energy?: "Low" | "Moderate" | "High";
+  note?: string;
 }
+
+type WellnessTopic =
+  | "gentle-stretching"
+  | "yoga"
+  | "relaxation"
+  | "rest-recovery"
+  | "hydration";
+
+const wellnessTopicConfig: Record<
+  WellnessTopic,
+  {
+    title: string;
+    emoji: string;
+    intro: string;
+    sections: { title: string; body: string }[];
+  }
+> = {
+  "gentle-stretching": {
+    title: "Gentle Stretching",
+    emoji: "🧘",
+    intro: "Simple, gentle movements can help some people feel more comfortable and relaxed.",
+    sections: [
+      {
+        title: "Why gentle stretching may feel helpful",
+        body: "Gentle movement can help some people ease tension in the shoulders, back, and hips. It may feel calming when you want a slow reset without pushing your body too hard.",
+      },
+      {
+        title: "Simple stretches for beginners",
+        body: "Try shoulder rolls, relaxed neck turns, and a seated side stretch. Keep the motion small and comfortable. You are not aiming for intensity; the goal is to feel supported and at ease.",
+      },
+      {
+        title: "A short, optional routine",
+        body: "Sit or stand tall. Roll your shoulders backward 5 times, gently turn your head side to side, then reach one arm overhead and lean slightly to the other side. Repeat slowly and stop if anything feels uncomfortable.",
+      },
+      {
+        title: "Tips for moving comfortably",
+        body: "Breathe steadily, keep your range of motion easy, and pause whenever you need to. Offer yourself rest instead of pushing through discomfort.",
+      },
+      {
+        title: "When to stop or modify a movement",
+        body: "Stop or ease off if you feel pain, dizziness, pressure, or anything that does not feel comfortable. You do not need to stretch if you feel unwell or if movement is not feeling right for your body today.",
+      },
+    ],
+  },
+  yoga: {
+    title: "Yoga & Gentle Movement",
+    emoji: "🧘‍♀️",
+    intro: "Yoga can offer an opportunity to slow down, stretch comfortably, and focus on breathing.",
+    sections: [
+      {
+        title: "Benefits of gentle movement",
+        body: "Gentle movement can help you settle your body, support mindful breathing, and create a little space to reset during a busy day.",
+      },
+      {
+        title: "Beginner-friendly poses",
+        body: "Try a seated cat-cow stretch, a gentle child’s pose using a cushion or folded blanket, or a supported standing stretch. Choose poses that feel easy and unforced.",
+      },
+      {
+        title: "A short, optional sequence",
+        body: "Start with a few slow breaths. Then try a seated twist, a standing side stretch, and a forward fold with a soft bend in the knees. Finish by resting in a comfortable seated position.",
+      },
+      {
+        title: "Simple breathing guidance",
+        body: "Inhale slowly through your nose, then exhale for a little longer than you inhale. Let breathing stay easy and unhurried.",
+      },
+      {
+        title: "Ways to adapt movements for comfort",
+        body: "Use a chair, stay seated, take extra breaks, or skip any pose that feels too intense. Rest is a completely valid choice.",
+      },
+    ],
+  },
+  relaxation: {
+    title: "Relaxation",
+    emoji: "🌿",
+    intro: "Taking a short pause can help you create space to unwind during a busy day.",
+    sections: [
+      {
+        title: "Simple ways to relax",
+        body: "Put your feet on the floor, lower your shoulders, and take a moment to notice what your body is doing. Small changes can make a big difference when you feel overloaded.",
+      },
+      {
+        title: "A brief guided breathing exercise",
+        body: "Breathe in for 4 counts, hold gently for 1, and breathe out for 6 counts. Repeat 4 to 6 times, or keep going at your own pace.",
+      },
+      {
+        title: "A short grounding exercise",
+        body: "Name 3 things you can see, 2 things you can feel, and 1 thing you can hear. This can help bring your attention back to the present moment.",
+      },
+      {
+        title: "Relaxation ideas for school or home",
+        body: "Listen to one quiet song, dim the lights, or step outside for a minute. Try a short reset between classes, tasks, or homework.",
+      },
+      {
+        title: "Creating a calm environment",
+        body: "A comfy blanket, a clean corner, or a calming playlist can make a rest break feel easier to settle into. Keep it simple and personal.",
+      },
+    ],
+  },
+  "rest-recovery": {
+    title: "Rest & Recovery",
+    emoji: "🛌",
+    intro: "Rest is a valid part of taking care of yourself. You do not have to be productive all the time.",
+    sections: [
+      {
+        title: "Recognizing when you might need a break",
+        body: "If you feel tired, overstimulated, achy, or low on focus, it may be a good time to slow down. A break is not a failure; it is a healthy response.",
+      },
+      {
+        title: "Creating a comfortable resting environment",
+        body: "Dim the lights, grab a blanket, adjust the temperature, and keep your space quiet enough that you can unwind. A comfortable setup can make rest easier to access.",
+      },
+      {
+        title: "Simple ways to make a busy day easier",
+        body: "A short pause between school tasks, a snack, or a few minutes away from screens can help your body reset. You do not need a perfect routine to benefit from rest.",
+      },
+      {
+        title: "General sleep-supportive habits",
+        body: "Keeping a regular wind-down, limiting screens close to bedtime, and making your sleep space feel calm can support better rest over time.",
+      },
+      {
+        title: "Balancing activities with rest",
+        body: "The goal is not perfection. It is about noticing when your body needs a reset and giving yourself permission to recover without guilt.",
+      },
+    ],
+  },
+  hydration: {
+    title: "Hydration & Self-Care",
+    emoji: "💧",
+    intro: "Small, practical habits can help you take care of yourself throughout the day.",
+    sections: [
+      {
+        title: "Remembering to drink throughout the day",
+        body: "Try keeping a water bottle nearby and sipping regularly instead of waiting until you feel very thirsty. Small, steady habits tend to feel more realistic.",
+      },
+      {
+        title: "Keeping a water bottle nearby",
+        body: "A bottle in your backpack, desk, or bedside table makes hydration easier to keep up with during school, sports, or study time.",
+      },
+      {
+        title: "General hydration guidance",
+        body: "Your needs may vary based on the weather, how active you are, and how your body feels. The goal is consistency and comfort, not strict rules.",
+      },
+      {
+        title: "Simple personal comfort ideas",
+        body: "Pack a lip balm, keep a snack in your bag, or bring a comfort item for the day. Small self-care habits can make a routine feel more manageable.",
+      },
+      {
+        title: "Preparing a small self-care kit",
+        body: "A reusable water bottle, tissues, a spare pair of underwear, a snack, and a small comfort item can help you feel more prepared during busy days.",
+      },
+    ],
+  },
+};
 
 interface AppState {
   profile: Profile;
@@ -207,6 +361,24 @@ export default function HomePage() {
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [appState, setAppState] = useState<AppState>(demoState);
   const [hasHydrated, setHasHydrated] = useState(false);
+  const [wellnessTopic, setWellnessTopic] = useState<WellnessTopic | null>(null);
+  const [wellnessPanel, setWellnessPanel] = useState<"overview" | "activity" | "energy">("overview");
+  const [activityForm, setActivityForm] = useState({
+    date: todayKey(),
+    activity: "",
+    customActivity: "",
+    note: "",
+    editingId: "",
+  });
+  const [activityError, setActivityError] = useState("");
+  const [activitySuccessMessage, setActivitySuccessMessage] = useState("");
+  const [energyForm, setEnergyForm] = useState({
+    date: todayKey(),
+    level: "Moderate" as WellnessEntry["energy"],
+    editingId: "",
+  });
+  const [energyError, setEnergyError] = useState("");
+  const [energySuccessMessage, setEnergySuccessMessage] = useState("");
 
   useEffect(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -265,6 +437,20 @@ export default function HomePage() {
   const monthDays = useMemo(() => getMonthGrid(calendarMonth), [calendarMonth]);
   const dailyRecord = appState.dailyLogs[selectedDate] ?? {};
   const notesForSelected = appState.notes.filter((note) => note.title.toLowerCase().includes("school") || true);
+  const activityHistory = useMemo(
+    () =>
+      [...appState.wellnessLogs]
+        .filter((entry) => Boolean(entry.activity))
+        .sort((a, b) => (a.date < b.date ? 1 : -1)),
+    [appState.wellnessLogs],
+  );
+  const energyHistory = useMemo(
+    () =>
+      [...appState.wellnessLogs]
+        .filter((entry) => Boolean(entry.energy))
+        .sort((a, b) => (a.date < b.date ? 1 : -1)),
+    [appState.wellnessLogs],
+  );
 
   const completeOnboarding = () => {
     setAppState((prev) => ({
@@ -353,6 +539,83 @@ export default function HomePage() {
       wellnessLogs: [],
     });
     setDeleteDialogOpen(false);
+  };
+
+  const resetActivityForm = (date = todayKey()) => {
+    setActivityForm({ date, activity: "", customActivity: "", note: "", editingId: "" });
+    setActivityError("");
+  };
+
+  const resetEnergyForm = (date = todayKey()) => {
+    setEnergyForm({ date, level: "Moderate", editingId: "" });
+    setEnergyError("");
+  };
+
+  const handleActivitySave = () => {
+    const selectedActivity = activityForm.activity === "Other" ? activityForm.customActivity.trim() : activityForm.activity.trim();
+    if (!selectedActivity) {
+      setActivityError("Choose an activity or enter one for Other before saving.");
+      return;
+    }
+
+    const entryId = activityForm.editingId || crypto.randomUUID();
+    const newEntry: WellnessEntry = {
+      id: entryId,
+      date: activityForm.date,
+      activity: selectedActivity,
+      note: activityForm.note.trim() || undefined,
+    };
+
+    setAppState((prev) => ({
+      ...prev,
+      wellnessLogs: [
+        ...prev.wellnessLogs.filter((entry) => !(entry.activity && entry.date === activityForm.date && entry.id !== entryId)),
+        newEntry,
+      ],
+    }));
+
+    const message = `Saved ${selectedActivity} for ${formatShortDate(activityForm.date)}.`;
+    setActivitySuccessMessage(message);
+    setActivityError("");
+    resetActivityForm(activityForm.date);
+  };
+
+  const handleEnergySave = () => {
+    if (!energyForm.level) {
+      setEnergyError("Select a current energy level before saving.");
+      return;
+    }
+
+    const entryId = energyForm.editingId || crypto.randomUUID();
+    const newEntry: WellnessEntry = {
+      id: entryId,
+      date: energyForm.date,
+      energy: energyForm.level,
+    };
+
+    setAppState((prev) => {
+      const filteredEntries = prev.wellnessLogs.filter((entry) => entry.id !== entryId && !(entry.energy && entry.date === energyForm.date));
+      return { ...prev, wellnessLogs: [...filteredEntries, newEntry] };
+    });
+
+    const message = `Saved ${energyForm.level} energy for ${formatShortDate(energyForm.date)}.`;
+    setEnergySuccessMessage(message);
+    setEnergyError("");
+    resetEnergyForm(energyForm.date);
+  };
+
+  const handleActivityDelete = (entryId: string) => {
+    setAppState((prev) => ({
+      ...prev,
+      wellnessLogs: prev.wellnessLogs.filter((entry) => entry.id !== entryId),
+    }));
+  };
+
+  const handleEnergyDelete = (entryId: string) => {
+    setAppState((prev) => ({
+      ...prev,
+      wellnessLogs: prev.wellnessLogs.filter((entry) => entry.id !== entryId),
+    }));
   };
 
   const hasUnsavedNoteChanges = () => {
@@ -784,56 +1047,373 @@ export default function HomePage() {
     </div>
   );
 
-  const renderWellness = () => (
+  const renderWellnessInfoPage = (topic: WellnessTopic) => {
+    const content = wellnessTopicConfig[topic];
+
+    return (
+      <div className="space-y-6">
+        <div className="rounded-[30px] bg-omega-purple p-6 text-white shadow-soft">
+          <button
+            type="button"
+            onClick={() => {
+              setWellnessTopic(null);
+              setWellnessPanel("overview");
+            }}
+            className="inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/10 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/20"
+          >
+            <ChevronLeft className="h-4 w-4" /> Back to Wellness
+          </button>
+          <p className="mt-4 text-sm uppercase tracking-[0.2em] text-omega-lilac">Wellness resources</p>
+          <h2 className="mt-2 text-3xl font-semibold">{content.title}</h2>
+        </div>
+
+        <div className="rounded-[30px] border border-omega-lilac/70 bg-white p-6 shadow-soft">
+          <div className="flex items-center gap-3">
+            <span className="text-4xl" aria-hidden="true">{content.emoji}</span>
+            <p className="text-lg leading-7 text-omega-ink">{content.intro}</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {content.sections.map((section) => (
+            <div key={section.title} className="rounded-[28px] border border-omega-lilac/70 bg-white p-5 shadow-soft">
+              <h3 className="text-xl font-semibold text-omega-purple">{section.title}</h3>
+              <p className="mt-3 text-sm leading-7 text-omega-ink">{section.body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderActivityPanel = () => (
     <div className="space-y-6">
       <div className="rounded-[30px] bg-omega-purple p-6 text-white shadow-soft">
-        <p className="text-sm uppercase tracking-[0.2em] text-omega-lilac">Wellness</p>
-        <h2 className="mt-2 text-3xl font-semibold">Comfort, recovery, and gentle support</h2>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {[
-          { title: "Gentle stretching", icon: "🧘" },
-          { title: "Yoga", icon: "🧘‍♀️" },
-          { title: "Relaxation", icon: "🌿" },
-          { title: "Rest and recovery", icon: "🛌" },
-          { title: "Hydration", icon: "💧" },
-          { title: "Self-care", icon: "✨" },
-        ].map((item) => (
-          <div key={item.title} className="rounded-[28px] border border-omega-lilac/70 bg-white p-5 shadow-soft">
-            <div className="text-4xl">{item.icon}</div>
-            <h3 className="mt-3 text-lg font-semibold text-omega-purple">{item.title}</h3>
-          </div>
-        ))}
+        <button
+          type="button"
+          onClick={() => {
+            setWellnessPanel("overview");
+            setActivitySuccessMessage("");
+            resetActivityForm();
+          }}
+          className="inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/10 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/20"
+        >
+          <ChevronLeft className="h-4 w-4" /> Back to Wellness
+        </button>
+        <p className="mt-4 text-sm uppercase tracking-[0.2em] text-omega-lilac">Activity</p>
+        <h2 className="mt-2 text-3xl font-semibold">Log an activity</h2>
       </div>
 
       <div className="rounded-[30px] border border-omega-lilac/70 bg-white p-5 shadow-soft">
-        <h3 className="text-xl font-semibold text-omega-purple">Activity and energy</h3>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <p className="text-sm font-medium text-omega-slate">Suggested activity</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {['Walking', 'Stretching', 'Yoga', 'Sports', 'Rest'].map((activity) => (
-                <button key={activity} type="button" className="rounded-full border border-omega-lilac bg-omega-beige px-3 py-2 text-sm text-omega-ink">
-                  {activity}
-                </button>
-              ))}
-            </div>
+            <label className="mb-2 block text-sm font-semibold text-omega-ink">Date</label>
+            <input
+              type="date"
+              value={activityForm.date}
+              onChange={(event) => setActivityForm((prev) => ({ ...prev, date: event.target.value }))}
+              className="w-full rounded-2xl border border-omega-lilac bg-omega-beige px-3 py-2 text-sm text-omega-ink outline-none"
+            />
           </div>
           <div>
-            <p className="text-sm font-medium text-omega-slate">Energy level</p>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <label className="mb-2 block text-sm font-semibold text-omega-ink">Activity</label>
+            <select
+              value={activityForm.activity}
+              onChange={(event) => setActivityForm((prev) => ({ ...prev, activity: event.target.value }))}
+              className="w-full rounded-2xl border border-omega-lilac bg-omega-beige px-3 py-2 text-sm text-omega-ink outline-none"
+            >
+              <option value="">Select an activity</option>
+              {['Walking', 'Stretching', 'Yoga', 'Sports', 'Other', 'Rest'].map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {activityForm.activity === "Other" && (
+          <div className="mt-4">
+            <label className="mb-2 block text-sm font-semibold text-omega-ink">Custom activity</label>
+            <input
+              value={activityForm.customActivity}
+              onChange={(event) => setActivityForm((prev) => ({ ...prev, customActivity: event.target.value }))}
+              placeholder="Enter the activity you want to log"
+              className="w-full rounded-2xl border border-omega-lilac bg-omega-beige px-3 py-2 text-sm text-omega-ink outline-none"
+            />
+          </div>
+        )}
+
+        <div className="mt-4">
+          <label className="mb-2 block text-sm font-semibold text-omega-ink">Optional note</label>
+          <textarea
+            rows={3}
+            value={activityForm.note}
+            onChange={(event) => setActivityForm((prev) => ({ ...prev, note: event.target.value }))}
+            placeholder="Add a quick note if you want to remember how you felt."
+            className="w-full rounded-2xl border border-omega-lilac bg-omega-beige px-3 py-2 text-sm text-omega-ink outline-none"
+          />
+        </div>
+
+        {activityError && <p className="mt-4 text-sm font-medium text-red-600">{activityError}</p>}
+        {activitySuccessMessage && <p className="mt-4 text-sm font-medium text-emerald-700">{activitySuccessMessage}</p>}
+
+        <div className="mt-5 flex flex-wrap gap-3">
+          <button type="button" onClick={handleActivitySave} className="rounded-full bg-omega-purple px-4 py-2 text-sm font-semibold text-white">
+            Save activity
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setWellnessPanel("overview");
+              resetActivityForm();
+            }}
+            className="rounded-full border border-omega-lilac bg-white px-4 py-2 text-sm font-semibold text-omega-purple"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-[30px] border border-omega-lilac/70 bg-white p-5 shadow-soft">
+        <h3 className="text-xl font-semibold text-omega-purple">Your activity history</h3>
+        {activityHistory.length === 0 ? (
+          <p className="mt-4 text-sm text-omega-slate">No activities logged yet. Add one whenever you&apos;d like.</p>
+        ) : (
+          <ul className="mt-4 space-y-3">
+            {activityHistory.map((entry) => (
+              <li key={entry.id} className="rounded-2xl bg-omega-beige p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-omega-ink">{entry.activity}</p>
+                    <p className="text-sm text-omega-slate">{formatShortDate(entry.date)}</p>
+                    {entry.note && <p className="mt-2 text-sm text-omega-slate">{entry.note}</p>}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActivityForm({
+                          date: entry.date,
+                          activity: entry.activity && ['Walking', 'Stretching', 'Yoga', 'Sports', 'Rest'].includes(entry.activity) ? entry.activity : "Other",
+                          customActivity: entry.activity && !['Walking', 'Stretching', 'Yoga', 'Sports', 'Rest'].includes(entry.activity) ? entry.activity : "",
+                          note: entry.note ?? "",
+                          editingId: entry.id,
+                        });
+                        setActivityError("");
+                        setActivitySuccessMessage("");
+                      }}
+                      className="rounded-full border border-omega-lilac bg-white p-2 text-omega-purple"
+                      aria-label={`Edit ${entry.activity}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleActivityDelete(entry.id)}
+                      className="rounded-full border border-red-200 bg-red-50 p-2 text-red-600"
+                      aria-label={`Delete ${entry.activity}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderEnergyPanel = () => (
+    <div className="space-y-6">
+      <div className="rounded-[30px] bg-omega-purple p-6 text-white shadow-soft">
+        <button
+          type="button"
+          onClick={() => {
+            setWellnessPanel("overview");
+            setEnergySuccessMessage("");
+            resetEnergyForm();
+          }}
+          className="inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/10 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/20"
+        >
+          <ChevronLeft className="h-4 w-4" /> Back to Wellness
+        </button>
+        <p className="mt-4 text-sm uppercase tracking-[0.2em] text-omega-lilac">Energy</p>
+        <h2 className="mt-2 text-3xl font-semibold">How is your energy today?</h2>
+      </div>
+
+      <div className="rounded-[30px] border border-omega-lilac/70 bg-white p-5 shadow-soft">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-omega-ink">Date</label>
+            <input
+              type="date"
+              value={energyForm.date}
+              onChange={(event) => setEnergyForm((prev) => ({ ...prev, date: event.target.value }))}
+              className="w-full rounded-2xl border border-omega-lilac bg-omega-beige px-3 py-2 text-sm text-omega-ink outline-none"
+            />
+          </div>
+          <div className="md:col-span-1">
+            <p className="mb-2 text-sm font-semibold text-omega-ink">Choose your energy level</p>
+            <div className="flex flex-wrap gap-2">
               {energyLevels.map((level) => (
-                <button key={level} type="button" className="rounded-full border border-omega-lilac bg-omega-lavender px-3 py-2 text-sm text-omega-ink">
+                <button
+                  key={level}
+                  type="button"
+                  onClick={() => setEnergyForm((prev) => ({ ...prev, level }))}
+                  className={`rounded-full border px-4 py-2 text-sm font-medium ${
+                    energyForm.level === level
+                      ? "border-omega-purple bg-omega-purple text-white shadow-soft"
+                      : "border-omega-lilac bg-omega-beige text-omega-ink"
+                  }`}
+                >
                   {level}
                 </button>
               ))}
             </div>
           </div>
         </div>
+
+        {energyError && <p className="mt-4 text-sm font-medium text-red-600">{energyError}</p>}
+        {energySuccessMessage && <p className="mt-4 text-sm font-medium text-emerald-700">{energySuccessMessage}</p>}
+
+        <div className="mt-5 flex flex-wrap gap-3">
+          <button type="button" onClick={handleEnergySave} className="rounded-full bg-omega-purple px-4 py-2 text-sm font-semibold text-white">
+            Save energy
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setWellnessPanel("overview");
+              resetEnergyForm();
+            }}
+            className="rounded-full border border-omega-lilac bg-white px-4 py-2 text-sm font-semibold text-omega-purple"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-[30px] border border-omega-lilac/70 bg-white p-5 shadow-soft">
+        <h3 className="text-xl font-semibold text-omega-purple">Your energy history</h3>
+        {energyHistory.length === 0 ? (
+          <p className="mt-4 text-sm text-omega-slate">No energy check-ins yet. Save your first one whenever you&apos;re ready.</p>
+        ) : (
+          <ul className="mt-4 space-y-3">
+            {energyHistory.map((entry) => (
+              <li key={entry.id} className="flex items-center justify-between gap-3 rounded-2xl bg-omega-beige p-4">
+                <div>
+                  <p className="font-semibold text-omega-ink">{entry.energy}</p>
+                  <p className="text-sm text-omega-slate">{formatShortDate(entry.date)}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEnergyForm({
+                        date: entry.date,
+                        level: entry.energy ?? "Moderate",
+                        editingId: entry.id,
+                      });
+                      setEnergyError("");
+                      setEnergySuccessMessage("");
+                    }}
+                    className="rounded-full border border-omega-lilac bg-white p-2 text-omega-purple"
+                    aria-label={`Edit ${entry.energy} energy`}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleEnergyDelete(entry.id)}
+                    className="rounded-full border border-red-200 bg-red-50 p-2 text-red-600"
+                    aria-label={`Delete ${entry.energy} energy`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
+
+  const renderWellness = () => {
+    if (wellnessTopic) {
+      return renderWellnessInfoPage(wellnessTopic);
+    }
+
+    if (wellnessPanel === "activity") {
+      return renderActivityPanel();
+    }
+
+    if (wellnessPanel === "energy") {
+      return renderEnergyPanel();
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="rounded-[30px] bg-omega-purple p-6 text-white shadow-soft">
+          <p className="text-sm uppercase tracking-[0.2em] text-omega-lilac">Wellness</p>
+          <h2 className="mt-2 text-3xl font-semibold">Comfort, recovery, and gentle support</h2>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {[
+            { key: "gentle-stretching" as const, title: "Gentle stretching", icon: "🧘" },
+            { key: "yoga" as const, title: "Yoga", icon: "🧘‍♀️" },
+            { key: "relaxation" as const, title: "Relaxation", icon: "🌿" },
+            { key: "rest-recovery" as const, title: "Rest and recovery", icon: "🛌" },
+            { key: "hydration" as const, title: "Hydration & self-care", icon: "💧" },
+          ].map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => setWellnessTopic(item.key)}
+              className="rounded-[28px] border border-omega-lilac/70 bg-white p-5 text-left shadow-soft transition hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <div className="text-4xl">{item.icon}</div>
+              <h3 className="mt-3 text-lg font-semibold text-omega-purple">{item.title}</h3>
+            </button>
+          ))}
+        </div>
+
+        <div className="rounded-[30px] border border-omega-lilac/70 bg-white p-5 shadow-soft">
+          <h3 className="text-xl font-semibold text-omega-purple">Activity and energy</h3>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <div>
+              <button
+                type="button"
+                onClick={() => {
+                  setWellnessPanel("activity");
+                  setWellnessTopic(null);
+                }}
+                className="flex w-full items-center justify-between rounded-2xl border border-omega-lilac bg-omega-beige px-4 py-3 text-left text-sm font-medium text-omega-ink"
+              >
+                <span>Open activity logger</span>
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+            <div>
+              <button
+                type="button"
+                onClick={() => {
+                  setWellnessPanel("energy");
+                  setWellnessTopic(null);
+                }}
+                className="flex w-full items-center justify-between rounded-2xl border border-omega-lilac bg-omega-lavender px-4 py-3 text-left text-sm font-medium text-omega-ink"
+              >
+                <span>Check energy</span>
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const renderSettings = () => (
     <div className="space-y-6">
