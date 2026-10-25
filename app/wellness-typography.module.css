@@ -1,0 +1,18 @@
+.page {
+  font-family: "Times New Roman", Times, serif;
+  line-height: 1.55;
+}
+
+.page :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--font-home-script), "Dancing Script", cursive;
+  letter-spacing: normal;
+  line-height: 1.2;
+}
+
+.page :is(button, input, select, textarea) {
+  font-family: "Times New Roman", Times, serif;
+}
+
+.page :is(input, textarea)::placeholder {
+  font-family: "Times New Roman", Times, serif;
+}
