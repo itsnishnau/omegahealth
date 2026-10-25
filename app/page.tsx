@@ -7,7 +7,10 @@ import './epsilon.css';
 
 import { Dancing_Script } from "next/font/google";
 import { useEffect, useMemo, useRef, useState } from "react";
+import doctorNotesTypography from "./doctor-notes-typography.module.css";
 import homeTypography from "./home-typography.module.css";
+import onboardingTypography from "./onboarding-typography.module.css";
+import wellnessTypography from "./wellness-typography.module.css";
 import {
   ArrowRight,
   Apple,
@@ -1289,7 +1292,7 @@ export default function HomePage() {
   );
 
   const renderDoctorNotes = () => (
-    <div className="space-y-6">
+    <div className={`${homeScript.variable} ${doctorNotesTypography.page} space-y-6`}>
       <div className="rounded-[30px] bg-omega-purple p-6 text-white shadow-soft">
         <p className="text-sm uppercase tracking-[0.2em] text-omega-lilac">Doctor notes</p>
         <h2 className="mt-2 text-3xl font-semibold">Prepare for your next appointment</h2>
@@ -1362,7 +1365,7 @@ export default function HomePage() {
               <div key={note.id} className="rounded-2xl bg-omega-beige p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-base font-semibold text-omega-ink">{note.title}</p>
+                    <p className={`${doctorNotesTypography.cardTitle} text-base font-semibold text-omega-ink`}>{note.title}</p>
                     {updatedDate ? <p className="text-xs text-omega-slate">Updated {updatedDate}</p> : null}
                   </div>
                   <div className="flex items-center gap-2">
@@ -1567,7 +1570,7 @@ export default function HomePage() {
     const content = wellnessTopicConfig[topic];
 
     return (
-      <div className="space-y-6">
+      <div className={`${homeScript.variable} ${wellnessTypography.page} space-y-6`}>
         <div className="rounded-[30px] bg-omega-purple p-6 text-white shadow-soft">
           <button
             type="button"
@@ -1603,7 +1606,7 @@ export default function HomePage() {
   };
 
   const renderActivityPanel = () => (
-    <div className="space-y-6">
+    <div className={`${homeScript.variable} ${wellnessTypography.page} space-y-6`}>
       <div className="rounded-[30px] bg-omega-purple p-6 text-white shadow-soft">
         <button
           type="button"
@@ -1741,7 +1744,7 @@ export default function HomePage() {
   );
 
   const renderEnergyPanel = () => (
-    <div className="space-y-6">
+    <div className={`${homeScript.variable} ${wellnessTypography.page} space-y-6`}>
       <div className="rounded-[30px] bg-omega-purple p-6 text-white shadow-soft">
         <button
           type="button"
@@ -1870,7 +1873,7 @@ export default function HomePage() {
     }
 
     return (
-      <div className="space-y-6">
+      <div className={`${homeScript.variable} ${wellnessTypography.page} space-y-6`}>
         <div className="rounded-[30px] bg-omega-purple p-6 text-white shadow-soft">
           <p className="text-sm uppercase tracking-[0.2em] text-omega-lilac">Wellness</p>
           <h2 className="mt-2 text-3xl font-semibold">Comfort, recovery, and gentle support</h2>
@@ -2088,7 +2091,7 @@ export default function HomePage() {
   ];
 
   const onboardingPage = (
-    <div className="min-h-screen bg-omega-beige px-4 py-8">
+    <div className={`${homeScript.variable} ${onboardingTypography.page} min-h-screen bg-omega-beige px-4 py-8`}>
       <div className="mx-auto max-w-2xl rounded-[38px] bg-white p-6 shadow-soft">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -2108,7 +2111,7 @@ export default function HomePage() {
         </div>
 
         <div className="space-y-5">
-          <h2 className="text-3xl font-semibold text-omega-ink">{onboardingQuestions[onboardingStep].title}</h2>
+          <h2 className={`${onboardingStep === 2 ? onboardingTypography.question : ""} text-3xl font-semibold text-omega-ink`}>{onboardingQuestions[onboardingStep].title}</h2>
           <p className="text-base text-omega-slate">{onboardingQuestions[onboardingStep].body}</p>
 
           {onboardingStep === 1 && (
@@ -2209,7 +2212,7 @@ export default function HomePage() {
   if (screen === "welcome") {
     return (
       <main className="min-h-screen bg-omega-beige px-4 py-8 text-omega-ink">
-        <div className="mx-auto max-w-6xl rounded-[40px] bg-[#fffaf4] p-5 shadow-soft md:p-8">
+        <div className={`${homeScript.variable} ${onboardingTypography.page} mx-auto max-w-6xl rounded-[40px] bg-[#fffaf4] p-5 shadow-soft md:p-8`}>
           <header className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Image src="/omegahealth-logo.png" width={150} height={104} alt="Omega Health" priority className="h-auto w-28 sm:w-36" />
@@ -2278,7 +2281,7 @@ export default function HomePage() {
   if (screen === "auth") {
     return (
       <main className="min-h-screen bg-omega-beige px-4 py-8">
-        <div className="mx-auto max-w-md rounded-[32px] bg-white p-6 shadow-soft">
+        <div className={`${homeScript.variable} ${onboardingTypography.page} mx-auto max-w-md rounded-[32px] bg-white p-6 shadow-soft`}>
           <div className="mb-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="rounded-2xl bg-omega-purple p-3 text-white">
