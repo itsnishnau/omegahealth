@@ -18,7 +18,7 @@ import ReadAloudButton from '../components/ReadAloudButton';
 import SpeechToTextButton from '../components/SpeechToTextButton';
 import './epsilon.css';
 
-import { Dancing_Script } from "next/font/google";
+import { Pacifico } from "next/font/google";
 import { useEffect, useMemo, useRef, useState } from "react";
 import doctorNotesTypography from "./doctor-notes-typography.module.css";
 import homeTypography from "./home-typography.module.css";
@@ -62,11 +62,12 @@ import {
   X,
 } from "lucide-react";
 
-const homeScript = Dancing_Script({
+const pacifico = Pacifico({
   subsets: ["latin"],
+  weight: "400",
   display: "swap",
   preload: false,
-  variable: "--font-home-script",
+  variable: "--font-pacifico",
 });
 
 type Screen = "welcome" | "auth" | "onboarding" | "app";
@@ -1156,7 +1157,7 @@ export default function HomePage() {
   };
 
   const renderDashboard = () => (
-    <div className={`${homeScript.variable} ${homeTypography.page} space-y-6`}>
+    <div className={`${pacifico.variable} ${homeTypography.page} space-y-6`}>
       <div className="rounded-[30px] border border-omega-lilac/60 bg-[#f4edf9] p-5 shadow-soft md:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -1407,7 +1408,7 @@ export default function HomePage() {
   );
 
   const renderDoctorNotes = () => (
-    <div className={`doctor-notes-polish ${homeScript.variable} ${doctorNotesTypography.page} space-y-6`}>
+    <div className={`doctor-notes-polish ${pacifico.variable} ${doctorNotesTypography.page} space-y-6`}>
       <div className="rounded-[30px] bg-omega-purple p-6 text-white shadow-soft">
         <p className="text-sm uppercase tracking-[0.2em] text-omega-lilac">Doctor notes</p>
         <h2 className="mt-2 text-3xl font-semibold">Prepare for your next appointment</h2>
@@ -1573,7 +1574,7 @@ export default function HomePage() {
     };
 
     return (
-      <div className={`${homeScript.variable} ${homeTypography.page} space-y-6`}>
+      <div className={`${pacifico.variable} ${homeTypography.page} space-y-6`}>
         <div className="rounded-[30px] bg-gradient-to-br from-omega-purple to-[#735b91] p-6 text-white shadow-soft">
           <p className="text-sm uppercase tracking-[0.2em] text-omega-lilac">Nutrition</p>
           <h2 className="mt-2 text-3xl font-semibold">Food and comfort support</h2>
@@ -1699,7 +1700,7 @@ export default function HomePage() {
   };
 
   const renderEducation = () => (
-    <div className={`education-polish ${homeScript.variable} ${homeTypography.page} space-y-6`}>
+    <div className={`education-polish ${pacifico.variable} ${homeTypography.page} space-y-6`}>
       <div className="rounded-[30px] bg-gradient-to-br from-omega-purple to-[#735b91] p-6 text-white shadow-soft">
         <p className="text-sm uppercase tracking-[0.2em] text-omega-lilac">Teen education</p>
         <h2 className="mt-2 text-3xl font-semibold">Clear information for everyday life</h2>
@@ -1779,7 +1780,7 @@ export default function HomePage() {
     const content = wellnessTopicConfig[topic];
 
     return (
-      <div className={`${homeScript.variable} ${wellnessTypography.page} space-y-6`}>
+      <div className={`${pacifico.variable} ${wellnessTypography.page} space-y-6`}>
         <div className="rounded-[30px] bg-omega-purple p-6 text-white shadow-soft">
           <button
             type="button"
@@ -1815,7 +1816,7 @@ export default function HomePage() {
   };
 
   const renderActivityPanel = () => (
-    <div className={`${homeScript.variable} ${wellnessTypography.page} space-y-6`}>
+    <div className={`${pacifico.variable} ${wellnessTypography.page} space-y-6`}>
       <div className="rounded-[30px] bg-omega-purple p-6 text-white shadow-soft">
         <button
           type="button"
@@ -2010,7 +2011,7 @@ export default function HomePage() {
   );
 
   const renderEnergyPanel = () => (
-    <div className={`${homeScript.variable} ${wellnessTypography.page} space-y-6`}>
+    <div className={`${pacifico.variable} ${wellnessTypography.page} space-y-6`}>
       <div className="rounded-[30px] bg-omega-purple p-6 text-white shadow-soft">
         <button
           type="button"
@@ -2139,7 +2140,7 @@ export default function HomePage() {
     }
 
     return (
-      <div className={`${homeScript.variable} ${wellnessTypography.page} space-y-6`}>
+      <div className={`${pacifico.variable} ${wellnessTypography.page} space-y-6`}>
         <div className="rounded-[30px] bg-omega-purple p-6 text-white shadow-soft">
           <p className="text-sm uppercase tracking-[0.2em] text-omega-lilac">Wellness</p>
           <h2 className="mt-2 text-3xl font-semibold">Comfort, recovery, and gentle support</h2>
@@ -2202,7 +2203,7 @@ export default function HomePage() {
   };
 
   const renderSettings = () => (
-    <div className={`${homeScript.variable} ${homeTypography.page} space-y-6`}>
+    <div className={`${pacifico.variable} ${homeTypography.page} space-y-6`}>
       <div className="rounded-[30px] bg-omega-purple p-6 text-white shadow-soft">
         <p className="text-sm uppercase tracking-[0.2em] text-omega-lilac">Settings</p>
         <h2 className="mt-2 text-3xl font-semibold">Your privacy and preferences</h2>
@@ -2360,7 +2361,7 @@ export default function HomePage() {
   ];
 
   const onboardingPage = (
-    <div className={`${homeScript.variable} ${onboardingTypography.page} min-h-screen bg-omega-beige px-4 py-8`}>
+    <div className={`${pacifico.variable} ${onboardingTypography.page} min-h-screen bg-omega-beige px-4 py-8`}>
       <div className="mx-auto max-w-2xl rounded-[38px] bg-white p-6 shadow-soft">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -2481,7 +2482,7 @@ export default function HomePage() {
   if (screen === "welcome") {
     return (
       <main className="min-h-screen bg-omega-beige px-4 py-8 text-omega-ink">
-        <div className={`${homeScript.variable} ${onboardingTypography.page} mx-auto max-w-6xl rounded-[40px] bg-[#fffaf4] p-5 shadow-soft md:p-8`}>
+        <div className={`${pacifico.variable} ${onboardingTypography.page} mx-auto max-w-6xl rounded-[40px] bg-[#fffaf4] p-5 shadow-soft md:p-8`}>
           <header className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Image src="/omegahealth-logo.png" width={150} height={104} alt="Omega Health" priority className="h-auto w-28 sm:w-36" />
@@ -2550,7 +2551,7 @@ export default function HomePage() {
   if (screen === "auth") {
     return (
       <main className="min-h-screen bg-omega-beige px-4 py-8">
-        <div className={`${homeScript.variable} ${onboardingTypography.page} mx-auto max-w-md rounded-[32px] bg-white p-6 shadow-soft`}>
+        <div className={`${pacifico.variable} ${onboardingTypography.page} mx-auto max-w-md rounded-[32px] bg-white p-6 shadow-soft`}>
           <div className="mb-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="rounded-2xl bg-omega-purple p-3 text-white">
