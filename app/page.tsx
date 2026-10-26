@@ -1,4 +1,6 @@
 "use client";
+import DailyDetails from "../components/DailyDetails";
+import "./daily-polish.css";
 import EstimateSignals from "../components/EstimateSignals";
 import HistoryPanel from "../components/HistoryPanel";
 import "./polish-v2.css";
@@ -1305,28 +1307,15 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="space-y-4 rounded-[28px] border border-omega-lilac/60 bg-white p-4 shadow-soft md:p-5">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className={`${homeTypography.bodyText} text-lg font-semibold text-omega-purple`}>{formatHomeDate(selectedDate)}</h3>
-          </div>
-
-          <div className="rounded-[22px] bg-omega-beige p-4">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-omega-slate">Daily details</p>
-            <div className="mt-3 space-y-2 text-sm text-omega-ink">
-              {selectedDayOnPeriod && <p><span className="font-medium">Flow:</span> {dailyRecord.flow ?? "Not logged"}</p>}
-              <p><span className="font-medium">Mood:</span> {dailyRecord.mood ?? "Not logged"}</p>
-              <p><span className="font-medium">Symptoms:</span> {appState.symptoms.filter((entry) => entry.date === selectedDate).length || 0} saved</p>
-            </div>
-          </div>
-        </div>
+        <DailyDetails date={selectedDate} mood={dailyRecord.mood} flow={dailyRecord.flow} nutrition={dailyRecord.nutrition} symptoms={appState.symptoms.filter(entry=>entry.date===selectedDate).length} onPeriod={selectedDayOnPeriod} />
       </div>
 
       <CheckinCharts logs={appState.dailyLogs} today={todayKey()} />
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="daily-input-grid">
         <div className="rounded-[26px] border border-omega-lilac/60 bg-white p-4 shadow-soft">
           <div className="flex items-center gap-3 text-omega-purple">
             <Heart className="h-5 w-5" />
-            <h3 className="text-lg font-semibold">Mood</h3>
+            <h3 className="text-lg font-semibold">How are you feeling?</h3>
           </div>
           <div className="mt-4 flex gap-2">
             {moodOptions.map((option) => (
@@ -1346,6 +1335,29 @@ export default function HomePage() {
           </div>
           <NutritionPicker date={selectedDate} value={dailyRecord.nutrition} onChange={value=>setAppState(prev=>({...prev,dailyLogs:{...prev.dailyLogs,[selectedDate]:{...prev.dailyLogs[selectedDate],nutrition:value || undefined}}}))} />
         </div>
+
+
+
+        <div className="rounded-[26px] border border-omega-lilac/60 bg-white p-4 shadow-soft">
+          <div className="flex items-center gap-3 text-omega-purple">
+            <NotebookPen className="h-5 w-5" />
+            <h3 className="text-lg font-semibold">Log symptoms</h3>
+          </div><div className="symptom-intro"><span aria-hidden="true">🌿</span><p>A little space to notice.<small>Write or speak what feels different today. Your observations help you spot patterns over time.</small></p></div>
+          <textarea
+            value={symptomInput}
+            onChange={(event) => setSymptomInput(event.target.value)}
+            placeholder="Feeling bloated and tired..."
+            aria-label="Describe symptoms"
+            className="mt-4 min-h-24 w-full rounded-2xl border border-omega-lilac bg-omega-beige p-3 text-sm text-omega-ink outline-none ring-0 placeholder:text-omega-slate"
+          />
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <SpeechToTextButton onTranscript={(transcript) => setSymptomInput((previous) => `${previous}${previous && !/\s$/.test(previous) ? " " : ""}${transcript}`)} />
+            <button type="button" onClick={handleSymptomSubmit} className="rounded-full bg-omega-purple px-4 py-2 text-sm font-semibold text-white">
+              Save symptom
+            </button>
+          </div>
+        </div>
+      </div>
 
         {selectedDayOnPeriod && (
         <div className="rounded-[26px] border border-omega-lilac/60 bg-rose-50 p-4 shadow-soft">
@@ -1371,28 +1383,6 @@ export default function HomePage() {
           </div>
         </div>
         )}
-
-        <div className="rounded-[26px] border border-omega-lilac/60 bg-white p-4 shadow-soft">
-          <div className="flex items-center gap-3 text-omega-purple">
-            <NotebookPen className="h-5 w-5" />
-            <h3 className="text-lg font-semibold">Log symptoms</h3>
-          </div>
-          <textarea
-            value={symptomInput}
-            onChange={(event) => setSymptomInput(event.target.value)}
-            placeholder="Feeling bloated and tired..."
-            aria-label="Describe symptoms"
-            className="mt-4 min-h-24 w-full rounded-2xl border border-omega-lilac bg-omega-beige p-3 text-sm text-omega-ink outline-none ring-0 placeholder:text-omega-slate"
-          />
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <SpeechToTextButton onTranscript={(transcript) => setSymptomInput((previous) => `${previous}${previous && !/\s$/.test(previous) ? " " : ""}${transcript}`)} />
-            <button type="button" onClick={handleSymptomSubmit} className="rounded-full bg-omega-purple px-4 py-2 text-sm font-semibold text-white">
-              Save symptom
-            </button>
-          </div>
-        </div>
-      </div>
-
       <HistoryPanel symptoms={appState.symptoms} dailyLogs={appState.dailyLogs} wellnessLogs={appState.wellnessLogs} />
 
     </div>

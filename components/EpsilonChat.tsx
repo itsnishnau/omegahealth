@@ -2,6 +2,8 @@
 import Image from 'next/image';
 import {getFaqReply, suggestedQuestions} from './epsilon-faq';
 import {useEffect, useRef, useState} from 'react';
+import type {PointerEvent as ReactPointerEvent} from 'react';
+import './epsilon-movable.css';
 import {Send, X, RotateCcw} from 'lucide-react';
 import ReadAloudButton from './ReadAloudButton';
 type Section = 'dashboard' | 'doctor-notes' | 'nutrition' | 'education' | 'wellness' | 'settings';
@@ -22,6 +24,8 @@ export default function EpsilonChat({
   readAloudEnabled?: boolean;
   speechRate?: number;
 }) {
+  const [minimized,setMinimized] = useState(false);
+  const restoreButton = useRef<HTMLButtonElement>(null);
   const [open,setOpen] = useState(isOpen);
   const [messages,setMessages] = useState<Message[]>([]);
   const [draft,setDraft] = useState('');
@@ -30,6 +34,36 @@ export default function EpsilonChat({
   const input = useRef<HTMLTextAreaElement>(null);
   const end = useRef<HTMLDivElement>(null);
   const launcher = useRef<HTMLButtonElement>(null);
+  const [position,setPosition] = useState<{x:number;y:number}|null>(null);
+  const drag = useRef<{id:number;x:number;y:number;left:number;top:number;moved:boolean}|null>(null);
+  const suppressClick = useRef(false);
+  function bounded(x:number,y:number){
+    const box=launcher.current?.getBoundingClientRect();
+    const width=box?.width||100, height=box?.height||150;
+    const reserve=inApp&&window.innerWidth<1024?78:8;
+    return {x:Math.max(4,Math.min(x,window.innerWidth-width-4)),y:Math.max(4,Math.min(y,window.innerHeight-height-reserve))};
+  }
+  useEffect(()=>{
+    function resize(){setPosition(p=>p?bounded(p.x,p.y):p);}
+    window.addEventListener('resize',resize);return()=>window.removeEventListener('resize',resize);
+  },[inApp]);
+  function pointerDown(e:ReactPointerEvent<HTMLButtonElement>){
+    if(!e.isPrimary||e.button!==0)return;
+    const box=e.currentTarget.getBoundingClientRect();suppressClick.current=false;
+    drag.current={id:e.pointerId,x:e.clientX,y:e.clientY,left:box.left,top:box.top,moved:false};
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+  function pointerMove(e:ReactPointerEvent<HTMLButtonElement>){
+    const d=drag.current;if(!d||d.id!==e.pointerId)return;
+    const dx=e.clientX-d.x,dy=e.clientY-d.y;
+    if(!d.moved&&Math.hypot(dx,dy)<7)return;
+    d.moved=true;suppressClick.current=true;setPosition(bounded(d.left+dx,d.top+dy));
+  }
+  function pointerEnd(e:ReactPointerEvent<HTMLButtonElement>){
+    if(drag.current?.id!==e.pointerId)return;
+    if(e.type==='pointercancel')suppressClick.current=true;
+    drag.current=null;if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);
+  }
   const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { setOpen(isOpen); }, [isOpen]);
@@ -38,6 +72,7 @@ export default function EpsilonChat({
   useEffect(() => () => {if(pending.current) clearTimeout(pending.current);},[]);
 
   function updateOpen(next:boolean){
+    if(next)setMinimized(false);
     setOpen(next);
     onOpenChange?.(next);
   }
@@ -66,6 +101,7 @@ export default function EpsilonChat({
       <form className="epsilon-form" onSubmit={e=>{e.preventDefault();void send();}}><label htmlFor="epsilon-message" className="sr-only">Message Epsilon</label><textarea id="epsilon-message" ref={input} rows={2} maxLength={2000} value={draft} disabled={busy} placeholder="Ask Epsilon…" onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();void send();}}}/><button className="epsilon-primary" type="submit" aria-label="Send message" disabled={busy||!draft.trim()}><Send size={18}/></button></form>
       <p className="epsilon-footnote">FAQ guide · Preset replies · No AI fees. Not medical advice.</p>
     </section>}
-    {!open && <button ref={launcher} className="epsilon-launcher" aria-label="Chat with Epsilon" aria-expanded={open} onClick={()=>updateOpen(true)}><span>Ask Epsilon</span><Image src="/epsilon.png" width={76} height={92} alt="" priority/></button>}
+    {!open && minimized && <button ref={restoreButton} className="epsilon-flower" aria-label="Restore Epsilon" title="Bring Epsilon back" onClick={()=>{setMinimized(false);setPosition(null);requestAnimationFrame(()=>launcher.current?.focus());}}><span aria-hidden="true">✿</span><b aria-hidden="true">Ω</b></button>}
+    {!open && !minimized && <><button className="epsilon-hide" style={position?{position:"fixed",left:position.x,top:position.y}:undefined} aria-label="Minimize Epsilon" title="Minimize Epsilon" onClick={()=>{setMinimized(true);requestAnimationFrame(()=>restoreButton.current?.focus());}}><X size={13}/></button><button ref={launcher} className="epsilon-launcher epsilon-movable" style={position?{position:'fixed',left:position.x,top:position.y}:undefined} aria-label="Chat with Epsilon" aria-description="Drag to move. Use arrow keys to reposition, Home to reset, or Enter to open chat." title="Tap to chat · drag to move" aria-expanded={open} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerEnd} onPointerCancel={pointerEnd} onLostPointerCapture={()=>{drag.current=null;}} onKeyDown={e=>{const moves:Record<string,[number,number]>={ArrowLeft:[-20,0],ArrowRight:[20,0],ArrowUp:[0,-20],ArrowDown:[0,20]};if(e.key==='Home'){e.preventDefault();setPosition(null);}else if(moves[e.key]){e.preventDefault();const box=e.currentTarget.getBoundingClientRect();setPosition(bounded(box.left+moves[e.key][0],box.top+moves[e.key][1]));}else if(e.key==='Enter'||e.key===' '){suppressClick.current=false;}}} onClick={()=>{if(suppressClick.current){suppressClick.current=false;return;}updateOpen(true);}}><Image src="/epsilon.png" width={76} height={92} alt="" draggable={false} priority/><span>Ask Epsilon</span></button></>}
   </div>;
 }
