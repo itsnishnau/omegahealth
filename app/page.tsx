@@ -2666,7 +2666,7 @@ export default function HomePage() {
                   </nav>
                 ) : null}
               </div>
-              <div className={`${homeScript.variable} ${homeTypography.header}`}>
+              <div className={`${pacifico.variable} ${homeTypography.header}`}>
                 <p className="text-xs uppercase tracking-[0.2em] text-omega-slate">{navItems.find(item=>item.key===section)?.label || "Dashboard"}</p>
                 <h1 className="mt-1 text-2xl font-semibold text-omega-ink">{`Welcome, ${appState.profile.preferredName}!`}</h1>
               </div>
@@ -2746,3 +2746,4 @@ export default function HomePage() {
 </main>
   );
 }
+
