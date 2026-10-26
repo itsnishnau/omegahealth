@@ -1,4 +1,7 @@
 "use client";
+import Patterns, {CycleNow, focusNames, type CareFocus} from "../components/Patterns";
+import {cycleHistory} from "../components/patterns-model";
+import "./patterns.css";
 import CalendarActions from "../components/CalendarActions";
 import DailyDetails from "../components/DailyDetails";
 import "./daily-polish.css";
@@ -67,12 +70,13 @@ const pacifico = Pacifico({
 });
 
 type Screen = "welcome" | "auth" | "onboarding" | "app";
-type Section = "dashboard" | "doctor-notes" | "nutrition" | "education" | "wellness" | "settings";
+type Section = "patterns" | "dashboard" | "doctor-notes" | "nutrition" | "education" | "wellness" | "settings";
 type CycleType = "regular" | "irregular" | "not-sure";
 type Mood = "Happy" | "Neutral" | "Sad";
 type Flow = "Spotting" | "Light" | "Medium" | "Heavy";
 
 interface Profile {
+  careFocus?: CareFocus;
   preferredName: string;
   age: number;
   cycleType: CycleType;
@@ -527,6 +531,7 @@ const demoState: AppState = {
 
 const navItems: { label: string; key: Section; icon: typeof Home }[] = [
   { label: "Home", key: "dashboard", icon: Home },
+  { label: "My patterns", key: "patterns", icon: CalendarRange },
   { label: "Doctor Notes", key: "doctor-notes", icon: FileHeart },
   { label: "Nutrition", key: "nutrition", icon: Utensils },
   { label: "Teen Education", key: "education", icon: BookOpenText },
@@ -1074,6 +1079,8 @@ export default function HomePage() {
         `Prepared: ${new Date().toLocaleDateString()}`,
         "",
         "Observed records (from information saved in this app):",
+        `Tracking focus (self-selected): ${focusNames[appState.profile.careFocus || "general"]}`,
+        `Recorded cycle intervals: ${cycleHistory(reportData,todayKey()).intervals.map(i=>`${i.days} days (${i.start} to ${i.end})`).join("; ") || "Not enough recorded starts"}`,
         `Period start dates recorded: ${reportData.periods.length}`,
         `Symptom entries recorded: ${reportData.symptoms.length}`,
         `Activity entries recorded: ${reportActivities.length}`,
@@ -1086,7 +1093,7 @@ export default function HomePage() {
         "",
         "Recent symptoms:",
         ...(reportData.symptoms.length
-          ? reportData.symptoms.slice(0, 10).map((entry) => `${entry.date}: ${entry.text}`)
+          ? reportData.symptoms.slice().sort((a,b)=>b.date.localeCompare(a.date)).map((entry) => `${entry.date}: ${entry.text}`)
           : ["No symptom entries are saved."]),
         "",
         "Activity records:",
@@ -1236,8 +1243,8 @@ export default function HomePage() {
             <button type="button" onClick={() => setEpsilonOpen(true)} className="mt-3 rounded-full bg-omega-purple px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:shadow-lg">Chat with Epsilon</button>
           </div>
         </section>
-        <section className="rounded-[28px] border border-omega-lilac/70 bg-white p-5 shadow-soft" aria-labelledby="cycle-phase-title">
-          <div className="flex items-center gap-2 text-omega-purple"><CalendarClock className="h-5 w-5" /><h3 id="cycle-phase-title" className="text-lg font-semibold">Cycle phase clock</h3></div>
+        {appState.profile.cycleType !== "regular" || !cyclePhase ? <CycleNow data={appState} today={todayKey()} onOpen={()=>setSection("patterns")} /> : (        <section className="rounded-[28px] border border-omega-lilac/70 bg-white p-5 shadow-soft" aria-labelledby="cycle-phase-title">
+          <div className="flex items-center gap-2 text-omega-purple"><CalendarClock className="h-5 w-5" /><h3 id="cycle-phase-title" className="text-lg font-semibold">Estimated cycle phase</h3></div>
           {cyclePhase ? (
             <>
               <p className="mt-3 text-2xl font-semibold text-omega-ink">{cyclePhase.phase}</p>
@@ -1248,7 +1255,7 @@ export default function HomePage() {
           ) : (
             <p className="mt-3 text-sm leading-6 text-omega-slate">Not enough stable period history to estimate a cycle phase yet. Log at least four period start dates with a regular pattern. Phase estimates do not confirm ovulation or provide contraception guidance.</p>
           )}
-        </section>
+        </section>)}
       </div>
 
       <div className="calendar-snapshot-layout">
@@ -1503,6 +1510,7 @@ export default function HomePage() {
       </div>
 
       <section className="rounded-[30px] border border-omega-lilac/70 bg-white p-5 shadow-soft" aria-labelledby="doctor-report-heading">
+        <p className="mb-3 text-sm text-omega-slate">Includes your self-selected tracking focus, recorded cycle lengths, and saved pattern observations. Demo records are excluded.</p><p className="mb-3 text-sm text-omega-slate">Tracking focus: {focusNames[appState.profile.careFocus || "general"]}. Recorded intervals: {cycleHistory(reportData,todayKey()).intervals.map(i=>`${i.days} days`).join(", ") || "Not enough recorded starts"}.</p>
         <h3 id="doctor-report-heading" className="text-xl font-semibold text-omega-purple">Doctor visit report</h3>
         <p className="mt-2 text-sm leading-6 text-omega-slate">Create a private PDF summary from records saved on this device. Private notes are excluded unless you select them below. Review the preview before sharing.</p>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -2306,6 +2314,8 @@ export default function HomePage() {
 
   const renderContent = () => {
     switch (section) {
+      case "patterns":
+        return <Patterns data={appState} today={todayKey()} focus={appState.profile.careFocus} onFocus={careFocus=>setAppState(prev=>({...prev,profile:{...prev.profile,careFocus}}))} onSave={(date,text)=>setAppState(prev=>({...prev,symptoms:[{id:crypto.randomUUID(),date,text},...prev.symptoms]}))} onReport={()=>{setReportQuestions(prev=>prev.trim()?prev:"What might explain my cycle pattern?\nWhich changes or symptoms should I track?\nWould any evaluation or follow-up be appropriate?");setSection("doctor-notes");}} estimate={periodSummary} />;
       case "doctor-notes":
         return renderDoctorNotes();
       case "nutrition":
@@ -2655,8 +2665,8 @@ export default function HomePage() {
                   </nav>
                 ) : null}
               </div>
-              <div className={`${pacifico.variable} ${homeTypography.header}`}>
-                <p className="text-xs uppercase tracking-[0.2em] text-omega-slate">{section === "doctor-notes" ? "Doctor Notes" : "Dashboard"}</p>
+              <div className={`${homeScript.variable} ${homeTypography.header}`}>
+                <p className="text-xs uppercase tracking-[0.2em] text-omega-slate">{navItems.find(item=>item.key===section)?.label || "Dashboard"}</p>
                 <h1 className="mt-1 text-2xl font-semibold text-omega-ink">{`Welcome, ${appState.profile.preferredName}!`}</h1>
               </div>
             </div>
@@ -2691,9 +2701,10 @@ export default function HomePage() {
 
           <div className="mt-6 pb-20 lg:pb-6">{renderContent()}</div>
 
-          <nav className={`${homeTypography.bodyText} fixed inset-x-3 bottom-3 z-20 grid grid-cols-4 gap-2 rounded-[24px] border border-omega-lilac/60 bg-white/90 p-2 shadow-soft backdrop-blur-md lg:hidden`}>
+          <nav className={`${homeTypography.bodyText} fixed inset-x-3 bottom-3 z-20 grid grid-cols-5 gap-1 rounded-[24px] border border-omega-lilac/60 bg-white/90 p-2 shadow-soft backdrop-blur-md lg:hidden`}>
             {[
               { label: "Home", key: "dashboard", icon: Home },
+              { label: "Patterns", key: "patterns", icon: CalendarRange },
               { label: "Notes", key: "doctor-notes", icon: NotebookPen },
               { label: "Nutrition", key: "nutrition", icon: Utensils },
               { label: "Wellness", key: "wellness", icon: Dumbbell },
