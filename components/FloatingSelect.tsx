@@ -1,6 +1,7 @@
 "use client";
 import {Children,isValidElement,useEffect,useId,useRef,useState,type ReactNode,type SelectHTMLAttributes,type ChangeEvent} from 'react';
 import {createPortal} from 'react-dom';
+import {ChevronDown} from 'lucide-react';
 type Props=SelectHTMLAttributes<HTMLSelectElement>;
 function collect(children:ReactNode):{value:string;label:ReactNode;disabled:boolean}[]{
  const result:{value:string;label:ReactNode;disabled:boolean}[]=[];
@@ -15,10 +16,8 @@ export default function FloatingSelect({children,value,onChange,disabled,id,'ari
  useEffect(()=>{if(!open)return;menu.current?.focus();const outside=(e:PointerEvent)=>{if(!menu.current?.contains(e.target as Node)&&!trigger.current?.contains(e.target as Node))setOpen(false);};const close=()=>setOpen(false);const scrolled=(e:Event)=>{if(!menu.current?.contains(e.target as Node))setOpen(false);};document.addEventListener('scroll',scrolled,true);document.addEventListener('pointerdown',outside);window.addEventListener('resize',close);return()=>{document.removeEventListener('scroll',scrolled,true);document.removeEventListener('pointerdown',outside);window.removeEventListener('resize',close);};},[open]);
  useEffect(()=>{if(open)document.getElementById(`${menuId}-${active}`)?.scrollIntoView({block:'nearest'});},[active,open,menuId]);
  return <span className="floating-select">
- <select {...rest} ref={native} value={value} onChange={onChange} disabled={disabled} hidden aria-hidden="true" tabIndex={-1}>{children}</select>
- <button type="button" id={id} ref={trigger} className={`floating-select-trigger ${className||''}`} aria-label={ariaLabel} aria-haspopup="listbox" aria-expanded={open} aria-controls={open?menuId:undefined} disabled={disabled} onClick={()=>open?setOpen(false):show()} onKeyDown={e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();show();}}}><span>{options[selected]?.label||options[0]?.label||'Choose an option'}</span><span className="select-chevron" aria-hidden="true">⌄</span></button>
+ <select {...rest} ref={native} value={value} onChange={onChange} disabled={disabled} hidden aria-hidden="true" tabIndex={-1} className="floating-select-native">{children}</select>
+ <button type="button" id={id} ref={trigger} className={`floating-select-trigger ${className||''}`} aria-label={ariaLabel} aria-haspopup="listbox" aria-expanded={open} aria-controls={open?menuId:undefined} disabled={disabled} onClick={()=>open?setOpen(false):show()} onKeyDown={e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();show();}}}><span>{options[selected]?.label||options[0]?.label||'Choose an option'}</span><ChevronDown className="floating-select-chevron h-4 w-4 shrink-0 text-omega-purple" aria-hidden="true" /></button>
  {open&&createPortal(<div ref={menu} className="floating-select-menu" id={menuId} role="listbox" aria-label={ariaLabel||'Choose an option'} aria-activedescendant={`${menuId}-${active}`} tabIndex={-1} style={position} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();setOpen(false);trigger.current?.focus();}else if(e.key==='Tab'){setOpen(false);trigger.current?.focus();}else if(e.key==='Enter'||e.key===' '){e.preventDefault();choose(active);}else if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)){e.preventDefault();const enabled=options.map((o,i)=>o.disabled?-1:i).filter(i=>i>=0);const at=enabled.indexOf(active);setActive(e.key==='Home'?enabled[0]:e.key==='End'?enabled.at(-1)!:enabled[(at+(e.key==='ArrowDown'?1:-1)+enabled.length)%enabled.length]??0);}else if(e.key.length===1){const found=options.findIndex(o=>!o.disabled&&String(o.label).toLowerCase().startsWith(e.key.toLowerCase()));if(found>=0)setActive(found);}}}>{options.map((o,i)=><div key={`${o.value}-${i}`} role="option" id={`${menuId}-${i}`} aria-selected={i===selected} aria-disabled={o.disabled} className={`floating-select-option ${i===active?'is-active':''}`} onPointerMove={()=>setActive(i)} onClick={()=>choose(i)}><span>{o.label}</span>{i===selected&&<span aria-hidden="true">✓</span>}</div>)}</div>,document.body)}
  </span>;
 }
-
-
