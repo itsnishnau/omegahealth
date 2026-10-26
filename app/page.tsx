@@ -1,4 +1,5 @@
 "use client";
+import FloatingSelect from '../components/FloatingSelect';
 import Patterns, {CycleNow, focusNames, type CareFocus} from "../components/Patterns";
 import {cycleHistory} from "../components/patterns-model";
 import "./patterns.css";
@@ -1844,7 +1845,7 @@ export default function HomePage() {
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold text-omega-ink">Activity</label>
-            <select
+            <FloatingSelect
               value={activityForm.activity}
               onChange={(event) => setActivityForm((prev) => ({ ...prev, activity: event.target.value }))}
               className="w-full rounded-2xl border border-omega-lilac bg-omega-beige px-3 py-2 text-sm text-omega-ink outline-none"
@@ -1853,7 +1854,7 @@ export default function HomePage() {
               {['Walking', 'Stretching', 'Yoga', 'Sports', 'Other', 'Rest'].map((option) => (
                 <option key={option} value={option}>{option}</option>
               ))}
-            </select>
+            </FloatingSelect>
           </div>
         </div>
 
@@ -1876,9 +1877,9 @@ export default function HomePage() {
           </label>
           <label className="block text-sm font-semibold text-omega-ink">
             Intensity (optional)
-            <select value={activityForm.intensity} onChange={(event) => setActivityForm((prev) => ({ ...prev, intensity: event.target.value as WellnessEntry["intensity"] | "" }))} className="mt-2 w-full rounded-2xl border border-omega-lilac bg-omega-beige px-3 py-2 text-sm font-normal outline-none">
+            <FloatingSelect value={activityForm.intensity} onChange={(event) => setActivityForm((prev) => ({ ...prev, intensity: event.target.value as WellnessEntry["intensity"] | "" }))} className="mt-2 w-full rounded-2xl border border-omega-lilac bg-omega-beige px-3 py-2 text-sm font-normal outline-none">
               <option value="">Not recorded</option><option value="Gentle">Gentle</option><option value="Moderate">Moderate</option><option value="Vigorous">Vigorous</option>
-            </select>
+            </FloatingSelect>
           </label>
           <label className="block text-sm font-semibold text-omega-ink">
             Symptoms during activity (optional)
@@ -2213,18 +2214,18 @@ export default function HomePage() {
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <label className="block text-sm font-semibold text-omega-ink">
               Color theme
-              <select
+              <FloatingSelect
                 value={uiPreferences.theme}
                 onChange={(event) => setUiPreferences((previous) => ({ ...previous, theme: event.target.value as ThemePreference }))}
                 className="mt-2 w-full rounded-xl border border-omega-lilac bg-white px-3 py-2 text-sm font-normal text-omega-ink outline-none focus-visible:ring-2 focus-visible:ring-omega-purple"
               >
                 <option value="light">Light</option>
                 <option value="dark">Dark</option>
-              </select>
+              </FloatingSelect>
             </label>
             <label className="block text-sm font-semibold text-omega-ink">
               Text size
-              <select
+              <FloatingSelect
                 value={uiPreferences.textSize}
                 onChange={(event) => setUiPreferences((previous) => ({ ...previous, textSize: event.target.value as TextSizePreference }))}
                 className="mt-2 w-full rounded-xl border border-omega-lilac bg-white px-3 py-2 text-sm font-normal text-omega-ink outline-none focus-visible:ring-2 focus-visible:ring-omega-purple"
@@ -2233,7 +2234,7 @@ export default function HomePage() {
                 <option value="default">Default</option>
                 <option value="large">Large</option>
                 <option value="extra-large">Extra large</option>
-              </select>
+              </FloatingSelect>
             </label>
           </div>
           <div className="mt-4 rounded-xl bg-white/70 p-3">
@@ -2251,7 +2252,7 @@ export default function HomePage() {
             </label>
             <label className={`mt-3 block text-sm font-semibold text-omega-ink ${uiPreferences.readAloudEnabled ? "" : "opacity-60"}`}>
               Speech rate
-              <select
+              <FloatingSelect
                 value={uiPreferences.speechRate}
                 disabled={!uiPreferences.readAloudEnabled}
                 onChange={(event) => setUiPreferences((previous) => ({ ...previous, speechRate: Number(event.target.value) }))}
@@ -2260,7 +2261,7 @@ export default function HomePage() {
                 <option value={0.8}>Slower</option>
                 <option value={1}>Normal</option>
                 <option value={1.2}>Faster</option>
-              </select>
+              </FloatingSelect>
             </label>
           </div>
           {uiPreferencesError ? <p className="mt-3 text-sm text-red-700" role="alert">{uiPreferencesError}</p> : null}
@@ -2283,7 +2284,7 @@ export default function HomePage() {
             <p className="text-sm font-semibold text-omega-ink">Cycle type</p>
             <p className="text-sm text-omega-slate">{appState.profile.cycleType}</p>
           </div>
-          <select
+          <FloatingSelect
             value={appState.profile.cycleType}
             onChange={(event) => setAppState((prev) => ({ ...prev, profile: { ...prev.profile, cycleType: event.target.value as CycleType } }))}
             className="rounded-xl border border-omega-lilac bg-white px-3 py-2 text-sm outline-none"
@@ -2291,7 +2292,7 @@ export default function HomePage() {
             <option value="regular">Regular</option>
             <option value="irregular">Irregular</option>
             <option value="not-sure">Not sure</option>
-          </select>
+          </FloatingSelect>
         </div>
 
         <div className="rounded-2xl bg-omega-beige p-4"><p className="text-sm font-semibold text-omega-ink">Epsilon FAQ guide</p><p className="text-sm text-omega-slate">Free preset replies on your device. No API key needed and no chat messages sent to an AI service.</p></div>

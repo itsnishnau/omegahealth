@@ -1,0 +1,24 @@
+"use client";
+import {Children,isValidElement,useEffect,useId,useRef,useState,type ReactNode,type SelectHTMLAttributes,type ChangeEvent} from 'react';
+import {createPortal} from 'react-dom';
+type Props=SelectHTMLAttributes<HTMLSelectElement>;
+function collect(children:ReactNode):{value:string;label:ReactNode;disabled:boolean}[]{
+ const result:{value:string;label:ReactNode;disabled:boolean}[]=[];
+ Children.forEach(children,child=>{if(!isValidElement<{value?:string|number;children?:ReactNode;disabled?:boolean}>(child))return;if(child.type==='option')result.push({value:String(child.props.value??child.props.children??''),label:child.props.children,disabled:!!child.props.disabled});else result.push(...collect(child.props.children));});return result;
+}
+export default function FloatingSelect({children,value,onChange,disabled,id,'aria-label':ariaLabel,className,...rest}:Props){
+ const options=collect(children),selected=options.findIndex(o=>o.value===String(value??''));
+ const [open,setOpen]=useState(false),[active,setActive]=useState(0),[position,setPosition]=useState({left:0,top:0,width:0,maxHeight:280});
+ const trigger=useRef<HTMLButtonElement>(null),menu=useRef<HTMLDivElement>(null),native=useRef<HTMLSelectElement>(null);const menuId=useId();
+ function show(){if(disabled||!trigger.current)return;const r=trigger.current.getBoundingClientRect();const height=Math.min(300,options.length*52+16),below=window.innerHeight-r.bottom-16,above=r.top-16;const up=below<Math.min(height,180)&&above>below;const available=Math.max(100,up?above:below);setPosition({left:Math.max(8,Math.min(r.left,window.innerWidth-r.width-8)),top:up?Math.max(8,r.top-Math.min(height,available)-8):r.bottom+8,width:Math.min(r.width,window.innerWidth-16),maxHeight:Math.min(height,available)});setActive(Math.max(0,selected));setOpen(true);}
+ function choose(index:number){const option=options[index];if(!option||option.disabled)return;if(native.current){native.current.value=option.value;onChange?.({target:native.current,currentTarget:native.current} as ChangeEvent<HTMLSelectElement>);}setOpen(false);trigger.current?.focus();}
+ useEffect(()=>{if(!open)return;menu.current?.focus();const outside=(e:PointerEvent)=>{if(!menu.current?.contains(e.target as Node)&&!trigger.current?.contains(e.target as Node))setOpen(false);};const close=()=>setOpen(false);const scrolled=(e:Event)=>{if(!menu.current?.contains(e.target as Node))setOpen(false);};document.addEventListener('scroll',scrolled,true);document.addEventListener('pointerdown',outside);window.addEventListener('resize',close);return()=>{document.removeEventListener('scroll',scrolled,true);document.removeEventListener('pointerdown',outside);window.removeEventListener('resize',close);};},[open]);
+ useEffect(()=>{if(open)document.getElementById(`${menuId}-${active}`)?.scrollIntoView({block:'nearest'});},[active,open,menuId]);
+ return <span className="floating-select">
+ <select {...rest} ref={native} value={value} onChange={onChange} disabled={disabled} hidden aria-hidden="true" tabIndex={-1}>{children}</select>
+ <button type="button" id={id} ref={trigger} className={`floating-select-trigger ${className||''}`} aria-label={ariaLabel} aria-haspopup="listbox" aria-expanded={open} aria-controls={open?menuId:undefined} disabled={disabled} onClick={()=>open?setOpen(false):show()} onKeyDown={e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();show();}}}><span>{options[selected]?.label||options[0]?.label||'Choose an option'}</span><span className="select-chevron" aria-hidden="true">⌄</span></button>
+ {open&&createPortal(<div ref={menu} className="floating-select-menu" id={menuId} role="listbox" aria-label={ariaLabel||'Choose an option'} aria-activedescendant={`${menuId}-${active}`} tabIndex={-1} style={position} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();setOpen(false);trigger.current?.focus();}else if(e.key==='Tab'){setOpen(false);trigger.current?.focus();}else if(e.key==='Enter'||e.key===' '){e.preventDefault();choose(active);}else if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)){e.preventDefault();const enabled=options.map((o,i)=>o.disabled?-1:i).filter(i=>i>=0);const at=enabled.indexOf(active);setActive(e.key==='Home'?enabled[0]:e.key==='End'?enabled.at(-1)!:enabled[(at+(e.key==='ArrowDown'?1:-1)+enabled.length)%enabled.length]??0);}else if(e.key.length===1){const found=options.findIndex(o=>!o.disabled&&String(o.label).toLowerCase().startsWith(e.key.toLowerCase()));if(found>=0)setActive(found);}}}>{options.map((o,i)=><div key={`${o.value}-${i}`} role="option" id={`${menuId}-${i}`} aria-selected={i===selected} aria-disabled={o.disabled} className={`floating-select-option ${i===active?'is-active':''}`} onPointerMove={()=>setActive(i)} onClick={()=>choose(i)}><span>{o.label}</span>{i===selected&&<span aria-hidden="true">✓</span>}</div>)}</div>,document.body)}
+ </span>;
+}
+
+
