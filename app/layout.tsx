@@ -1,7 +1,15 @@
 import './floating-polish.css';
 import './globals.css';
+import { Bad_Script } from 'next/font/google';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+
+const badScript = Bad_Script({
+  subsets: ['latin'],
+  weight: '400',
+  display: 'swap',
+  variable: '--font-bad-script',
+});
 
 export const metadata: Metadata = {
   title: 'Omega Health',
@@ -11,7 +19,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={badScript.variable}>
       <body>{children}</body>
     </html>
   );
