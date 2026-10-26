@@ -1,4 +1,5 @@
 "use client";
+import CalendarActions from "../components/CalendarActions";
 import DailyDetails from "../components/DailyDetails";
 import "./daily-polish.css";
 import EstimateSignals from "../components/EstimateSignals";
@@ -852,6 +853,7 @@ export default function HomePage() {
   };
 
   const handleSymptomSubmit = () => {
+    if(selectedDate>todayKey())return;
     const trimmed = symptomInput.trim();
     if (!trimmed) return;
 
@@ -861,6 +863,7 @@ export default function HomePage() {
   };
 
   const handleMoodSelect = (mood: Mood) => {
+    if(selectedDate>todayKey())return;
     setAppState((prev) => ({
       ...prev,
       dailyLogs: {
@@ -871,6 +874,7 @@ export default function HomePage() {
   };
 
   const handleFlowSelect = (flow: Flow) => {
+    if(selectedDate>todayKey())return;
     setAppState((prev) => ({
       ...prev,
       dailyLogs: {
@@ -1246,8 +1250,8 @@ export default function HomePage() {
         </section>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.45fr_0.55fr]">
-        <div className="rounded-[28px] border border-omega-lilac/60 bg-white p-4 shadow-soft md:p-5">
+      <div className="calendar-snapshot-layout">
+        <div className="calendar-card rounded-[28px] border border-omega-lilac/60 bg-white p-4 shadow-soft md:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-omega-purple">
               <CalendarRange className="h-5 w-5" />
@@ -1256,7 +1260,7 @@ export default function HomePage() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}
+                aria-label="Previous month" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}
                 className="rounded-full border border-omega-lilac p-2 text-omega-purple"
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -1266,7 +1270,7 @@ export default function HomePage() {
               </span>
               <button
                 type="button"
-                onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))}
+                aria-label="Next month" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))}
                 className="rounded-full border border-omega-lilac p-2 text-omega-purple"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -1285,15 +1289,15 @@ export default function HomePage() {
               const dateKey = day.key;
               const isSelected = dateKey === selectedDate;
               const isToday = dateKey === todayKey();
-              const hasPeriod = appState.periods.some((period) => dateKey >= period.startDate && (!period.endDate || dateKey <= period.endDate));
-              const hasDailyLog = Boolean(appState.dailyLogs[dateKey]);
+              const hasPeriod = dateKey <= todayKey() && appState.periods.some((period) => dateKey >= period.startDate && (!period.endDate || dateKey <= period.endDate));
+              const hasDailyLog = Boolean(appState.dailyLogs[dateKey]?.mood || appState.dailyLogs[dateKey]?.flow || appState.dailyLogs[dateKey]?.nutrition) || appState.symptoms.some(e=>e.date===dateKey) || appState.wellnessLogs.some(e=>e.date===dateKey);
 
               return (
                 <button
                   key={dateKey}
                   type="button"
-                  onClick={() => setSelectedDate(dateKey)}
-                  className={`flex h-12 items-center justify-center rounded-2xl border text-sm font-medium transition ${
+                  aria-label={`${formatHomeDate(dateKey)}${hasPeriod ? ", recorded period" : ""}${hasDailyLog ? ", check-in saved" : ""}`} aria-pressed={isSelected} onClick={() => setSelectedDate(dateKey)}
+                  className={`calendar-day flex h-12 items-center justify-center rounded-2xl border text-sm font-medium transition ${
                     !day.inCurrentMonth ? "text-omega-slate/40" : "text-omega-ink"
                   } ${isSelected ? "border-omega-purple bg-omega-lavender text-omega-purple" : "border-transparent bg-omega-beige/70"} ${isToday ? "ring-2 ring-omega-seafoam" : ""} ${hasPeriod ? "bg-omega-seafoam/35 shadow-inner" : ""}`}
                 >
@@ -1305,13 +1309,19 @@ export default function HomePage() {
               );
             })}
           </div>
+          <div className="calendar-footer">
+            <div className="calendar-legend"><span><i className="period-key"/>Recorded period</span><span><i className="log-key"/>Saved check-in</span><span><i className="today-key"/>Today</span></div>
+            <p>Choose a date to see its snapshot and add a check-in below.</p>
+            <div className="calendar-month-stats"><div><strong>{monthDays.filter(day=>day.inCurrentMonth && day.key<=todayKey() && appState.periods.some(p=>day.key>=p.startDate&&(!p.endDate||day.key<=p.endDate))).length}</strong><span>period days recorded</span></div><div><strong>{monthDays.filter(day=>day.inCurrentMonth&&(Boolean(appState.dailyLogs[day.key]?.mood||appState.dailyLogs[day.key]?.flow||appState.dailyLogs[day.key]?.nutrition)||appState.symptoms.some(e=>e.date===day.key)||appState.wellnessLogs.some(e=>e.date===day.key))).length}</strong><span>days with check-ins</span></div></div>
+            <button type="button" onClick={()=>{setCalendarMonth(new Date());setSelectedDate(todayKey());}}>Back to today ↗</button>
+          </div>
         </div>
 
-        <DailyDetails date={selectedDate} mood={dailyRecord.mood} flow={dailyRecord.flow} nutrition={dailyRecord.nutrition} symptoms={appState.symptoms.filter(entry=>entry.date===selectedDate).length} onPeriod={selectedDayOnPeriod} />
+        <div className="space-y-4 min-w-0"><DailyDetails date={selectedDate} mood={dailyRecord.mood} flow={dailyRecord.flow} nutrition={dailyRecord.nutrition} symptoms={appState.symptoms.filter(entry=>entry.date===selectedDate).length} onPeriod={selectedDayOnPeriod} /><CalendarActions date={selectedDate} today={todayKey()} periods={appState.periods} onPeriods={periods=>setAppState(prev=>({...prev,periods}))} onActivity={()=>{resetActivityForm(selectedDate);setActivitySuccessMessage("");setWellnessPanel("activity");setWellnessTopic(null);setSection("wellness");}} onCheckin={()=>document.getElementById("daily-checkin-fields")?.scrollIntoView({behavior:"smooth",block:"start"})} /></div>
       </div>
 
       <CheckinCharts logs={appState.dailyLogs} today={todayKey()} />
-      <div className="daily-input-grid">
+      <div className="daily-input-grid" id="daily-checkin-fields">
         <div className="rounded-[26px] border border-omega-lilac/60 bg-white p-4 shadow-soft">
           <div className="flex items-center gap-3 text-omega-purple">
             <Heart className="h-5 w-5" />
