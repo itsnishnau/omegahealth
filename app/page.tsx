@@ -1,4 +1,9 @@
 "use client";
+import EstimateSignals from "../components/EstimateSignals";
+import HistoryPanel from "../components/HistoryPanel";
+import "./polish-v2.css";
+import {ActivityChart, CheckinCharts, NutritionPicker} from "../components/ProgressCharts";
+import "./progress-charts.css";
 import {estimateCycle} from "../components/cycle-estimate";
 import Image from 'next/image';
 import EpsilonChat from '../components/EpsilonChat';
@@ -42,6 +47,7 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
+  Sprout,
   Star,
   SunMedium,
   Trash2,
@@ -103,6 +109,9 @@ interface WellnessEntry {
   activity?: string;
   energy?: "Low" | "Moderate" | "High";
   note?: string;
+  durationMinutes?: number;
+  intensity?: "Gentle" | "Moderate" | "Vigorous";
+  symptoms?: string;
 }
 
 type WellnessTopic =
@@ -259,6 +268,8 @@ const wellnessTopicConfig: Record<
 };
 
 interface AppState {
+  activityGoal?: number;
+  activityGoalType?: string;
   profile: Profile;
   periods: PeriodRecord[];
   symptoms: SymptomEntry[];
@@ -528,10 +539,50 @@ const moodOptions: { label: Mood; emoji: string }[] = [
 const flowOptions: Flow[] = ["Spotting", "Light", "Medium", "Heavy"];
 const energyLevels = ["Low", "Moderate", "High"] as const;
 
+function estimateCyclePhase(data: AppState, today: string) {
+  const todayNumber = Date.parse(`${today}T00:00:00Z`);
+  const starts = [...new Set(data.periods
+    .map((period) => Date.parse(`${period.startDate}T00:00:00Z`))
+    .filter((date) => Number.isFinite(date) && date <= todayNumber))]
+    .sort((a, b) => a - b)
+    .slice(-6);
+  if (starts.length < 4 || data.profile.cycleType !== "regular") return null;
+
+  const intervals = starts.slice(1).map((start, index) => (start - starts[index]) / 86400000);
+  const shortest = Math.min(...intervals);
+  const longest = Math.max(...intervals);
+  if (shortest < 21 || longest > 45 || longest - shortest > 7) return null;
+
+  const sorted = [...intervals].sort((a, b) => a - b);
+  const cycleLength = Math.round(sorted[Math.floor(sorted.length / 2)]);
+  const elapsed = Math.floor((todayNumber - starts[starts.length - 1]) / 86400000);
+  const cycleDay = (elapsed % cycleLength) + 1;
+  const ovulationDay = cycleLength - 14;
+  const phase = cycleDay <= 5
+    ? "Menstrual"
+    : cycleDay < ovulationDay - 3
+      ? "Follicular"
+      : cycleDay <= ovulationDay + 3
+        ? "Ovulatory window (estimated)"
+        : "Luteal";
+
+  return {
+    phase,
+    cycleDay,
+    cycleLength,
+    explanation: `Based on ${intervals.length} recent cycle intervals that varied by no more than 7 days. Phase and cycle day are estimates from past dates, not confirmed ovulation or medical guidance.`,
+  };
+}
+
 function formatShortDate(dateValue: string) {
   if (!dateValue) return "—";
   const date = new Date(`${dateValue}T12:00:00`);
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
+}
+
+function formatDateRange(dates: string[]) {
+  const sorted = dates.filter(Boolean).sort();
+  return sorted.length ? `${sorted[0]} to ${sorted[sorted.length - 1]}` : "No dates recorded";
 }
 
 function formatNoteDate(dateValue: string) {
@@ -591,6 +642,10 @@ export default function HomePage() {
   const [noteEditorOpen, setNoteEditorOpen] = useState(false);
   const [noteError, setNoteError] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
+  const [reportNoteIds, setReportNoteIds] = useState<string[]>([]);
+  const [reportQuestions, setReportQuestions] = useState("");
+  const [reportError, setReportError] = useState("");
+  const [reportGenerating, setReportGenerating] = useState(false);
   const noteSaveInProgress = useRef(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [doctorNotesNotificationsOpen, setDoctorNotesNotificationsOpen] = useState(false);
@@ -613,6 +668,9 @@ export default function HomePage() {
     activity: "",
     customActivity: "",
     note: "",
+    durationMinutes: "",
+    intensity: "" as WellnessEntry["intensity"] | "",
+    symptoms: "",
     editingId: "",
   });
   const [activityError, setActivityError] = useState("");
@@ -708,10 +766,26 @@ export default function HomePage() {
   );
 
   const periodSummary = estimateCycle(appState, todayKey());
+  const cyclePhase = estimateCyclePhase(appState, todayKey());
+  const reportData = {
+    ...appState,
+    periods: appState.periods.filter((entry) => entry.id !== "p1" && entry.id !== "p2"),
+    symptoms: appState.symptoms.filter((entry) => !["s1", "s2", "s3"].includes(entry.id)),
+    notes: appState.notes.filter((entry) => entry.id !== "n1"),
+    wellnessLogs: appState.wellnessLogs.filter((entry) => entry.id !== "w1" && entry.id !== "w2"),
+    dailyLogs: Object.fromEntries(Object.entries(appState.dailyLogs).filter(([date, entry]) => {
+      const sample = demoState.dailyLogs[date];
+      return !sample || entry.mood !== sample.mood || entry.flow !== sample.flow || entry.nutrition !== sample.nutrition;
+    })),
+  };
+  const reportPeriodSummary = estimateCycle(reportData, todayKey());
+  const reportActivities = reportData.wellnessLogs.filter((entry) => Boolean(entry.activity));
+  const reportEnergies = reportData.wellnessLogs.filter((entry) => Boolean(entry.energy));
 
   const monthDays = useMemo(() => getMonthGrid(calendarMonth), [calendarMonth]);
   const selectedEducationCategory = educationCategories.find((category) => category.id === educationCategoryId) ?? null;
   const dailyRecord = appState.dailyLogs[selectedDate] ?? {};
+  const selectedDayOnPeriod = selectedDate <= todayKey() && appState.periods.some(period => period.startDate <= selectedDate && (!period.endDate || selectedDate <= period.endDate));
   const notesForSelected = appState.notes.filter((note) => note.title.toLowerCase().includes("school") || true);
   const activityHistory = useMemo(
     () =>
@@ -837,7 +911,7 @@ export default function HomePage() {
   };
 
   const resetActivityForm = (date = todayKey()) => {
-    setActivityForm({ date, activity: "", customActivity: "", note: "", editingId: "" });
+    setActivityForm({ date, activity: "", customActivity: "", note: "", durationMinutes: "", intensity: "", symptoms: "", editingId: "" });
     setActivityError("");
   };
 
@@ -847,9 +921,14 @@ export default function HomePage() {
   };
 
   const handleActivitySave = () => {
+    if (!activityForm.date || activityForm.date > todayKey()) { setActivityError("Choose today or an earlier activity date."); return; }
     const selectedActivity = activityForm.activity === "Other" ? activityForm.customActivity.trim() : activityForm.activity.trim();
     if (!selectedActivity) {
       setActivityError("Choose an activity or enter one for Other before saving.");
+      return;
+    }
+    if (activityForm.durationMinutes && (!Number.isInteger(Number(activityForm.durationMinutes)) || Number(activityForm.durationMinutes) < 1 || Number(activityForm.durationMinutes) > 1440)) {
+      setActivityError("Duration must be a whole number of minutes between 1 and 1,440.");
       return;
     }
 
@@ -859,12 +938,15 @@ export default function HomePage() {
       date: activityForm.date,
       activity: selectedActivity,
       note: activityForm.note.trim() || undefined,
+      durationMinutes: activityForm.durationMinutes ? Number(activityForm.durationMinutes) : undefined,
+      intensity: activityForm.intensity || undefined,
+      symptoms: activityForm.symptoms.trim() || undefined,
     };
 
     setAppState((prev) => ({
       ...prev,
       wellnessLogs: [
-        ...prev.wellnessLogs.filter((entry) => !(entry.activity && entry.date === activityForm.date && entry.id !== entryId)),
+        ...prev.wellnessLogs.filter((entry) => entry.id !== entryId),
         newEntry,
       ],
     }));
@@ -900,6 +982,7 @@ export default function HomePage() {
   };
 
   const handleActivityDelete = (entryId: string) => {
+    if (!window.confirm("Delete this activity entry? This cannot be undone.")) return;
     setAppState((prev) => ({
       ...prev,
       wellnessLogs: prev.wellnessLogs.filter((entry) => entry.id !== entryId),
@@ -973,6 +1056,83 @@ export default function HomePage() {
     }
   };
 
+  const generateDoctorReport = async () => {
+    setReportGenerating(true);
+    setReportError("");
+    try {
+      const { jsPDF } = await import("jspdf");
+      const pdf = new jsPDF();
+      const lines = [
+        "Omega Health - Doctor Visit Summary",
+        `Prepared: ${new Date().toLocaleDateString()}`,
+        "",
+        "Observed records (from information saved in this app):",
+        `Period start dates recorded: ${reportData.periods.length}`,
+        `Symptom entries recorded: ${reportData.symptoms.length}`,
+        `Activity entries recorded: ${reportActivities.length}`,
+        `Energy check-ins recorded: ${reportEnergies.length}`,
+        `Mood and flow logs recorded: ${Object.values(reportData.dailyLogs).filter((entry) => entry.mood || entry.flow).length}`,
+        `Period start date range: ${formatDateRange(reportData.periods.map((entry) => entry.startDate))}`,
+        `Symptom date range: ${formatDateRange(reportData.symptoms.map((entry) => entry.date))}`,
+        `Activity date range: ${formatDateRange(reportActivities.map((entry) => entry.date))}`,
+        `Recorded period starts: ${reportData.periods.map((entry) => entry.startDate).sort().join(", ") || "None"}`,
+        "",
+        "Recent symptoms:",
+        ...(reportData.symptoms.length
+          ? reportData.symptoms.slice(0, 10).map((entry) => `${entry.date}: ${entry.text}`)
+          : ["No symptom entries are saved."]),
+        "",
+        "Activity records:",
+        ...(reportActivities.length
+          ? reportActivities.map((entry) => `${entry.date}: ${entry.activity}${entry.durationMinutes ? `, ${entry.durationMinutes} minutes` : ""}${entry.intensity ? `, ${entry.intensity} intensity` : ""}${entry.symptoms ? `, symptoms: ${entry.symptoms}` : ""}${entry.note ? `, note: ${entry.note}` : ""}`)
+          : ["No activity entries are saved."]),
+        "",
+        "Energy check-ins:",
+        ...(reportEnergies.length
+          ? reportEnergies.map((entry) => `${entry.date}: ${entry.energy}`)
+          : ["No energy check-ins are saved."]),
+        "",
+        "Mood and flow check-ins:",
+        ...Object.entries(reportData.dailyLogs)
+          .filter(([, entry]) => entry.mood || entry.flow)
+          .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+          .map(([date, entry]) => `${date}: mood ${entry.mood ?? "not logged"}, flow ${entry.flow ?? "not logged"}`)
+          .concat(Object.values(reportData.dailyLogs).some((entry) => entry.mood || entry.flow) ? [] : ["No mood or flow check-ins are saved."]),
+        "",
+        "Questions for my clinician:",
+        ...(reportQuestions.trim() ? reportQuestions.trim().split(/\r?\n/) : ["No questions added."]),
+        "",
+        "Cycle estimate:",
+        `${reportPeriodSummary.title}: ${reportPeriodSummary.date}. ${reportPeriodSummary.detail}`,
+        "This is an experimental estimate and is not medical advice or contraception guidance.",
+        "",
+        "Notes included by choice:",
+        ...(reportData.notes.filter((note) => reportNoteIds.includes(note.id))
+          .flatMap((note) => [`${note.title} (${note.updatedAt.slice(0, 10)}):`, note.content, ""])
+          .length
+          ? reportData.notes.filter((note) => reportNoteIds.includes(note.id))
+            .flatMap((note) => [`${note.title} (${note.updatedAt.slice(0, 10)}):`, note.content, ""])
+          : ["No private notes selected."]),
+      ];
+
+      let y = 18;
+      for (const line of lines) {
+        const wrapped = pdf.splitTextToSize(line, 174);
+        if (y + wrapped.length * 6 > 280) {
+          pdf.addPage();
+          y = 18;
+        }
+        pdf.text(wrapped, 18, y);
+        y += wrapped.length * 6 + 2;
+      }
+      pdf.save("omega-health-doctor-visit-summary.pdf");
+    } catch {
+      setReportError("The report could not be generated. Please try again or use your browser's print option.");
+    } finally {
+      setReportGenerating(false);
+    }
+  };
+
   const editNote = (note: Note) => {
     if (noteEditorOpen && hasUnsavedNoteChanges() && !window.confirm("Discard your unsaved note changes?")) return;
     setNoteEditor({ id: note.id, title: note.title, content: note.content });
@@ -1016,6 +1176,7 @@ export default function HomePage() {
               <div>
                 <p className="text-[11px] uppercase tracking-[0.2em] text-omega-slate">{periodSummary.subtitle}</p>
                 <p className="mt-2 text-2xl font-semibold text-omega-purple">{periodSummary.date}</p>
+<EstimateSignals today={todayKey()} logs={appState.dailyLogs} activities={appState.wellnessLogs} symptoms={appState.symptoms} />
               </div>
             </div>
 
@@ -1056,6 +1217,31 @@ export default function HomePage() {
             <ReadAloudButton text={periodSummary.detail} enabled={uiPreferences.readAloudEnabled} rate={uiPreferences.speechRate} className="mt-3" />
           </div>
         </div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="flex items-center gap-4 rounded-[28px] border border-omega-lilac/70 bg-gradient-to-br from-omega-lavender via-white to-omega-beige p-5 shadow-soft">
+          <Image src="/epsilon.png" width={120} height={144} alt="Epsilon, your purple robot guide" className="epsilon-mascot h-28 w-24 shrink-0 object-contain" />
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-omega-plum">Your friendly guide</p>
+            <h3 className="mt-1 text-xl font-semibold text-omega-purple">Epsilon is here for you</h3>
+            <p className="mt-1 text-sm leading-6 text-omega-slate">Ask general questions or find your way around Omega Health, at your own pace.</p>
+            <button type="button" onClick={() => setEpsilonOpen(true)} className="mt-3 rounded-full bg-omega-purple px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:shadow-lg">Chat with Epsilon</button>
+          </div>
+        </section>
+        <section className="rounded-[28px] border border-omega-lilac/70 bg-white p-5 shadow-soft" aria-labelledby="cycle-phase-title">
+          <div className="flex items-center gap-2 text-omega-purple"><CalendarClock className="h-5 w-5" /><h3 id="cycle-phase-title" className="text-lg font-semibold">Cycle phase clock</h3></div>
+          {cyclePhase ? (
+            <>
+              <p className="mt-3 text-2xl font-semibold text-omega-ink">{cyclePhase.phase}</p>
+              <p className="mt-1 text-sm text-omega-slate">Estimated cycle day {cyclePhase.cycleDay} of about {cyclePhase.cycleLength}</p>
+              <p className="mt-3 text-sm leading-6 text-omega-slate">{cyclePhase.explanation}</p>
+              <ReadAloudButton text={`${cyclePhase.phase}. Estimated cycle day ${cyclePhase.cycleDay} of about ${cyclePhase.cycleLength}. ${cyclePhase.explanation}`} enabled={uiPreferences.readAloudEnabled} rate={uiPreferences.speechRate} className="mt-2" />
+            </>
+          ) : (
+            <p className="mt-3 text-sm leading-6 text-omega-slate">Not enough stable period history to estimate a cycle phase yet. Log at least four period start dates with a regular pattern. Phase estimates do not confirm ovulation or provide contraception guidance.</p>
+          )}
+        </section>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.45fr_0.55fr]">
@@ -1127,7 +1313,7 @@ export default function HomePage() {
           <div className="rounded-[22px] bg-omega-beige p-4">
             <p className="text-[11px] uppercase tracking-[0.2em] text-omega-slate">Daily details</p>
             <div className="mt-3 space-y-2 text-sm text-omega-ink">
-              <p><span className="font-medium">Flow:</span> {dailyRecord.flow ?? "Not logged"}</p>
+              {selectedDayOnPeriod && <p><span className="font-medium">Flow:</span> {dailyRecord.flow ?? "Not logged"}</p>}
               <p><span className="font-medium">Mood:</span> {dailyRecord.mood ?? "Not logged"}</p>
               <p><span className="font-medium">Symptoms:</span> {appState.symptoms.filter((entry) => entry.date === selectedDate).length || 0} saved</p>
             </div>
@@ -1135,6 +1321,7 @@ export default function HomePage() {
         </div>
       </div>
 
+      <CheckinCharts logs={appState.dailyLogs} today={todayKey()} />
       <div className="grid gap-4 xl:grid-cols-3">
         <div className="rounded-[26px] border border-omega-lilac/60 bg-white p-4 shadow-soft">
           <div className="flex items-center gap-3 text-omega-purple">
@@ -1157,14 +1344,11 @@ export default function HomePage() {
               </button>
             ))}
           </div>
-          <label className="mt-5 block text-sm font-medium text-omega-ink">Nutrition check-in
-            <select aria-label="Nutrition check-in" value={dailyRecord.nutrition ?? ""} onChange={event => setAppState(prev => ({...prev,dailyLogs:{...prev.dailyLogs,[selectedDate]:{...prev.dailyLogs[selectedDate],nutrition:event.target.value || undefined}}}))} className="mt-2 w-full rounded-xl border border-omega-lilac bg-omega-beige p-3">
-              <option value="">Not logged</option><option value="Usual eating pattern">Usual eating pattern</option><option value="Appetite lower than usual">Appetite lower than usual</option><option value="Appetite higher than usual">Appetite higher than usual</option><option value="Meal routine changed">Meal routine changed</option>
-            </select>
-          </label>
+          <NutritionPicker date={selectedDate} value={dailyRecord.nutrition} onChange={value=>setAppState(prev=>({...prev,dailyLogs:{...prev.dailyLogs,[selectedDate]:{...prev.dailyLogs[selectedDate],nutrition:value || undefined}}}))} />
         </div>
 
-        <div className="rounded-[26px] border border-omega-lilac/60 bg-white p-4 shadow-soft">
+        {selectedDayOnPeriod && (
+        <div className="rounded-[26px] border border-omega-lilac/60 bg-rose-50 p-4 shadow-soft">
           <div className="flex items-center gap-3 text-omega-purple">
             <CalendarRange className="h-5 w-5" />
             <h3 className="text-lg font-semibold">Flow</h3>
@@ -1180,11 +1364,13 @@ export default function HomePage() {
                   dailyRecord.flow === option ? "border-omega-purple bg-omega-lavender text-omega-purple shadow-[0_0_0_3px_rgba(217,201,238,0.65),0_8px_24px_rgba(81,59,112,0.14)]" : "border-omega-lilac bg-omega-beige text-omega-ink"
                 }`}
               >
+                <span className="flow-drops" aria-hidden="true">{flowOptions.map((_,i)=><span key={i} style={{opacity:i<=flowOptions.indexOf(option)?1:.18}}>♦</span>)}</span>
                 {option}
               </button>
             ))}
           </div>
         </div>
+        )}
 
         <div className="rounded-[26px] border border-omega-lilac/60 bg-white p-4 shadow-soft">
           <div className="flex items-center gap-3 text-omega-purple">
@@ -1207,30 +1393,13 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="rounded-[28px] border border-omega-lilac/60 bg-white p-4 shadow-soft">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="text-lg font-semibold text-omega-purple">Quick history</h3>
-          <div className="text-sm text-omega-slate">{symptomCount} symptom entries</div>
-        </div>
-        <div className="mt-4 space-y-3">
-          {appState.symptoms.slice(0, 4).map((entry) => (
-            <div key={entry.id} className="flex items-start justify-between gap-3 rounded-2xl bg-omega-beige p-3">
-              <div>
-                <p className="text-sm font-medium text-omega-ink">{entry.text}</p>
-                <p className="mt-1 text-xs text-omega-slate">{formatHomeDate(entry.date)}</p>
-              </div>
-              <button type="button" className="text-omega-purple" aria-label={`Edit symptom from ${formatHomeDate(entry.date)}`}>
-                <Pencil className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
+      <HistoryPanel symptoms={appState.symptoms} dailyLogs={appState.dailyLogs} wellnessLogs={appState.wellnessLogs} />
+
     </div>
   );
 
   const renderDoctorNotes = () => (
-    <div className={`${homeScript.variable} ${doctorNotesTypography.page} space-y-6`}>
+    <div className={`doctor-notes-polish ${homeScript.variable} ${doctorNotesTypography.page} space-y-6`}>
       <div className="rounded-[30px] bg-omega-purple p-6 text-white shadow-soft">
         <p className="text-sm uppercase tracking-[0.2em] text-omega-lilac">Doctor notes</p>
         <h2 className="mt-2 text-3xl font-semibold">Prepare for your next appointment</h2>
@@ -1259,6 +1428,13 @@ export default function HomePage() {
             </label>
             <label className="block text-sm font-medium text-omega-ink">
               Note
+              <SpeechToTextButton
+                className="mt-2"
+                onTranscript={(transcript) => setNoteEditor((previous) => ({
+                  ...previous,
+                  content: `${previous.content}${previous.content && !/\s$/.test(previous.content) ? " " : ""}${transcript}`,
+                }))}
+              />
               <textarea
                 value={noteEditor.content}
                 onChange={(event) => {
@@ -1324,6 +1500,59 @@ export default function HomePage() {
           )}
         </div>
       </div>
+
+      <section className="rounded-[30px] border border-omega-lilac/70 bg-white p-5 shadow-soft" aria-labelledby="doctor-report-heading">
+        <h3 id="doctor-report-heading" className="text-xl font-semibold text-omega-purple">Doctor visit report</h3>
+        <p className="mt-2 text-sm leading-6 text-omega-slate">Create a private PDF summary from records saved on this device. Private notes are excluded unless you select them below. Review the preview before sharing.</p>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="rounded-2xl bg-omega-beige p-4">
+            <h4 className="font-semibold text-omega-ink">Observed records</h4>
+            <ul className="mt-2 space-y-1 text-sm text-omega-slate">
+              <li>{reportData.periods.length} period start dates</li>
+              <li>{reportData.symptoms.length} symptom entries</li>
+              <li>{reportActivities.length} activity entries</li>
+              <li>{reportEnergies.length} energy check-ins</li>
+              <li>{Object.values(reportData.dailyLogs).filter((entry) => entry.mood || entry.flow).length} mood/flow check-ins</li>
+            </ul>
+            <p className="mt-2 text-xs leading-5 text-omega-slate">Date ranges — periods: {formatDateRange(reportData.periods.map((entry) => entry.startDate))}; symptoms: {formatDateRange(reportData.symptoms.map((entry) => entry.date))}; activities: {formatDateRange(reportActivities.map((entry) => entry.date))}.</p>
+            <p className="mt-3 text-xs leading-5 text-omega-slate">Cycle estimate (not observed): {reportPeriodSummary.date}. {reportPeriodSummary.detail}</p>
+          </div>
+          <div className="space-y-2">
+            <h4 className="font-semibold text-omega-ink">Choose private notes to include</h4>
+            {reportData.notes.length ? reportData.notes.map((note) => (
+              <label key={note.id} className="flex items-start gap-2 rounded-xl border border-omega-lilac/70 p-3 text-sm text-omega-ink">
+                <input
+                  type="checkbox"
+                  checked={reportNoteIds.includes(note.id)}
+                  onChange={(event) => setReportNoteIds((current) => event.target.checked ? [...current, note.id] : current.filter((id) => id !== note.id))}
+                  className="mt-1 accent-[#513b70]"
+                />
+                <span>{note.title} <span className="text-xs text-omega-slate">— private note; opt-in</span></span>
+              </label>
+            )) : <p className="text-sm text-omega-slate">No saved private notes are available to include.</p>}
+          </div>
+        </div>
+        <label className="mt-4 block text-sm font-semibold text-omega-ink">
+          Questions for your clinician (one per line)
+          <textarea value={reportQuestions} onChange={(event) => setReportQuestions(event.target.value)} rows={3} placeholder={"What should I track next?\nCould these symptoms need follow-up?"} className="mt-2 w-full rounded-2xl border border-omega-lilac bg-omega-beige p-3 text-sm font-normal outline-none" />
+        </label>
+        <div className="mt-4 rounded-2xl border border-omega-lilac/60 bg-omega-beige/60 p-4">
+          <h4 className="font-semibold text-omega-ink">Report preview</h4>
+          <p className="mt-2 text-sm text-omega-slate">{reportData.symptoms.length ? reportData.symptoms.slice(0, 3).map((entry) => `${entry.date}: ${entry.text}`).join(" • ") : "No saved symptoms. The report will clearly show empty record totals."}</p>
+          <p className="mt-2 text-sm text-omega-slate">{reportNoteIds.length} private note(s) selected. {reportQuestions.trim() ? reportQuestions.trim().split(/\r?\n/).filter(Boolean).length : 0} clinician question(s) added.</p>
+          {reportData.notes.filter((note) => reportNoteIds.includes(note.id)).map((note) => (
+            <div key={note.id} className="mt-2 rounded-xl bg-white p-3">
+              <p className="text-sm font-semibold text-omega-ink">{note.title}</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-omega-slate">{note.content}</p>
+            </div>
+          ))}
+          <ReadAloudButton text={`Doctor report preview. ${reportData.symptoms.length} symptoms, ${reportActivities.length} activities, and ${reportNoteIds.length} private notes selected. ${reportQuestions}`} enabled={uiPreferences.readAloudEnabled} rate={uiPreferences.speechRate} className="mt-3" />
+        </div>
+        {reportError ? <p role="alert" className="mt-3 text-sm text-red-700">{reportError}</p> : null}
+        <button type="button" onClick={generateDoctorReport} disabled={reportGenerating} className="mt-4 inline-flex items-center gap-2 rounded-full bg-omega-purple px-5 py-3 text-sm font-semibold text-white shadow-soft disabled:opacity-60">
+          <Download className="h-4 w-4" /> {reportGenerating ? "Preparing PDF..." : "Generate and download PDF"}
+        </button>
+      </section>
     </div>
   );
 
@@ -1342,6 +1571,7 @@ export default function HomePage() {
           <p className="mt-2 max-w-2xl text-sm leading-6 text-white/85">Explore general nutrition education shaped by symptoms you have chosen to log. These ideas are not treatment plans.</p>
         </div>
 
+        <CheckinCharts logs={appState.dailyLogs} today={todayKey()} nutritionOnly />
         <section className="rounded-[30px] border border-omega-lilac/70 bg-white p-5 shadow-soft" aria-label="Nutrition guidance carousel">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -1419,6 +1649,38 @@ export default function HomePage() {
           </div>
         </section>
 
+        <section className="rounded-[30px] border border-omega-lilac/70 bg-white p-5 shadow-soft" aria-labelledby="phase-nutrition-heading">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h3 id="phase-nutrition-heading" className="text-xl font-semibold text-omega-purple">Nutrition across the cycle</h3>
+              <p className="mt-1 text-sm text-omega-slate">{cyclePhase ? `Optional general education. Current estimated phase: ${cyclePhase.phase}.` : "Optional general education. No current phase is highlighted because there is not enough stable history."}</p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              { name: "Menstrual", icon: HeartPulse, text: "Choose regular meals and fluids that feel comfortable. Iron-containing foods such as beans, lentils, tofu, or fortified cereals can be part of varied meals." },
+              { name: "Follicular", icon: Sprout, text: "A varied mix of carbohydrates, protein foods, fruits or vegetables, and fats can support general nourishment as routines change." },
+              { name: "Ovulatory window", icon: Sparkles, text: "Keep meals and hydration flexible around your needs. A calendar estimate cannot confirm ovulation, and no special food is required." },
+              { name: "Luteal", icon: Apple, text: "Regular snacks or meals may help maintain a comfortable routine. Choose foods you enjoy; no particular food is a treatment for cycle symptoms." },
+            ].map((item) => {
+              const Icon = item.icon;
+              const isCurrent = Boolean(cyclePhase && (
+                (item.name === "Ovulatory window" && cyclePhase.phase.startsWith("Ovulatory")) ||
+                item.name === cyclePhase.phase
+              ));
+              return (
+                <article key={item.name} className={`rounded-2xl border p-4 transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${isCurrent ? "border-omega-purple bg-omega-lavender shadow-[0_0_0_3px_rgba(217,201,238,0.5)]" : "border-omega-lilac/70 bg-omega-beige/50"}`}>
+                  <div className="flex items-center gap-2 text-omega-purple"><Icon className="h-5 w-5" aria-hidden="true" /><h4 className="font-semibold">{item.name}</h4></div>
+                  {isCurrent ? <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-omega-plum">Current phase estimate</p> : null}
+                  <p className="mt-2 text-sm leading-6 text-omega-slate">{item.text}</p>
+                  <ReadAloudButton text={`${item.name}. ${item.text}`} enabled={uiPreferences.readAloudEnabled} rate={uiPreferences.speechRate} className="mt-2" />
+                </article>
+              );
+            })}
+          </div>
+          {cyclePhase ? <p className="mt-3 text-xs leading-5 text-omega-slate">{cyclePhase.explanation} Nutrition information is general education, not a prescribed diet.</p> : null}
+        </section>
+
         <div className="rounded-[26px] border border-omega-lilac/70 bg-omega-beige/80 p-4 text-sm leading-6 text-omega-slate">
           Nutrition guidance here is general education, not a diagnosis, treatment plan, supplement recommendation, or individualized diet. If a symptom is persistent or severe, talk with a trusted adult or healthcare professional.
           <button type="button" onClick={() => setSection("dashboard")} className="ml-2 font-semibold text-omega-purple underline underline-offset-2">Log a symptom</button>
@@ -1428,7 +1690,7 @@ export default function HomePage() {
   };
 
   const renderEducation = () => (
-    <div className={`${homeScript.variable} ${homeTypography.page} space-y-6`}>
+    <div className={`education-polish ${homeScript.variable} ${homeTypography.page} space-y-6`}>
       <div className="rounded-[30px] bg-gradient-to-br from-omega-purple to-[#735b91] p-6 text-white shadow-soft">
         <p className="text-sm uppercase tracking-[0.2em] text-omega-lilac">Teen education</p>
         <h2 className="mt-2 text-3xl font-semibold">Clear information for everyday life</h2>
@@ -1599,8 +1861,32 @@ export default function HomePage() {
           </div>
         )}
 
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          <label className="block text-sm font-semibold text-omega-ink">
+            Duration (minutes, optional)
+            <input type="number" min={1} max={1440} step={1} inputMode="numeric" value={activityForm.durationMinutes} onChange={(event) => setActivityForm((prev) => ({ ...prev, durationMinutes: event.target.value }))} placeholder="e.g. 20" className="mt-2 w-full rounded-2xl border border-omega-lilac bg-omega-beige px-3 py-2 text-sm font-normal outline-none" />
+          </label>
+          <label className="block text-sm font-semibold text-omega-ink">
+            Intensity (optional)
+            <select value={activityForm.intensity} onChange={(event) => setActivityForm((prev) => ({ ...prev, intensity: event.target.value as WellnessEntry["intensity"] | "" }))} className="mt-2 w-full rounded-2xl border border-omega-lilac bg-omega-beige px-3 py-2 text-sm font-normal outline-none">
+              <option value="">Not recorded</option><option value="Gentle">Gentle</option><option value="Moderate">Moderate</option><option value="Vigorous">Vigorous</option>
+            </select>
+          </label>
+          <label className="block text-sm font-semibold text-omega-ink">
+            Symptoms during activity (optional)
+            <input value={activityForm.symptoms} onChange={(event) => setActivityForm((prev) => ({ ...prev, symptoms: event.target.value }))} placeholder="e.g. felt comfortable" className="mt-2 w-full rounded-2xl border border-omega-lilac bg-omega-beige px-3 py-2 text-sm font-normal outline-none" />
+          </label>
+        </div>
+
         <div className="mt-4">
           <label className="mb-2 block text-sm font-semibold text-omega-ink">Optional note</label>
+          <SpeechToTextButton
+            className="mb-2"
+            onTranscript={(transcript) => setActivityForm((previous) => ({
+              ...previous,
+              note: `${previous.note}${previous.note && !/\s$/.test(previous.note) ? " " : ""}${transcript}`,
+            }))}
+          />
           <textarea
             rows={3}
             value={activityForm.note}
@@ -1630,6 +1916,31 @@ export default function HomePage() {
         </div>
       </div>
 
+      <section className="rounded-[30px] border border-omega-lilac/70 bg-white p-5 shadow-soft" aria-labelledby="activity-insights-heading">
+        <ActivityChart logs={appState.wellnessLogs} today={todayKey()} goalType={appState.activityGoalType} onGoalType={value=>setAppState(prev=>({...prev,activityGoalType:value}))} onLog={()=>{setWellnessPanel("activity");setWellnessTopic(null);}} goal={appState.activityGoal} onGoal={value=>setAppState(prev=>({...prev,activityGoal:value}))} />
+        <h3 id="activity-insights-heading" className="text-xl font-semibold text-omega-purple">Your activity insights</h3>
+        {activityHistory.length ? (() => {
+          const cutoff = Date.now() - 30 * 86400000;
+          const recent = activityHistory.filter((entry) => Date.parse(`${entry.date}T00:00:00`) >= cutoff);
+          const minutes = recent.reduce((total, entry) => total + (entry.durationMinutes ?? 0), 0);
+          const activities = new Map<string, number>();
+          recent.forEach((entry) => activities.set(entry.activity ?? "Activity", (activities.get(entry.activity ?? "Activity") ?? 0) + 1));
+          const mostLogged = [...activities.entries()].sort((a, b) => b[1] - a[1])[0];
+          const summary = `In the last 30 days, ${recent.length} activity entries are recorded${minutes ? `, totaling ${minutes} minutes where duration was provided` : ""}${mostLogged ? `. Most logged: ${mostLogged[0]}, ${mostLogged[1]} ${mostLogged[1] === 1 ? "time" : "times"}` : ""}. These are your logged records, not an activity goal or health assessment.`;
+          return (
+            <>
+              <p className="mt-2 text-sm leading-6 text-omega-slate">{summary}</p>
+              <div className="mt-3 flex flex-wrap gap-3 text-sm text-omega-ink">
+                <span className="rounded-full bg-omega-lavender px-3 py-1.5">{recent.length} entries · 30 days</span>
+                <span className="rounded-full bg-omega-lavender px-3 py-1.5">{minutes} minutes recorded</span>
+                {mostLogged ? <span className="rounded-full bg-omega-lavender px-3 py-1.5">Most logged: {mostLogged[0]}</span> : null}
+              </div>
+              <ReadAloudButton text={summary} enabled={uiPreferences.readAloudEnabled} rate={uiPreferences.speechRate} className="mt-3" />
+            </>
+          );
+        })() : <p className="mt-2 text-sm text-omega-slate">Log activities to see a summary of your own history here. There are no targets or judgements.</p>}
+      </section>
+
       <div className="rounded-[30px] border border-omega-lilac/70 bg-white p-5 shadow-soft">
         <h3 className="text-xl font-semibold text-omega-purple">Your activity history</h3>
         {activityHistory.length === 0 ? (
@@ -1642,6 +1953,11 @@ export default function HomePage() {
                   <div>
                     <p className="font-semibold text-omega-ink">{entry.activity}</p>
                     <p className="text-sm text-omega-slate">{formatShortDate(entry.date)}</p>
+                    {(entry.durationMinutes || entry.intensity || entry.symptoms) && (
+                      <p className="mt-1 text-xs text-omega-slate">
+                        {[entry.durationMinutes ? `${entry.durationMinutes} min` : "", entry.intensity, entry.symptoms ? `Symptoms: ${entry.symptoms}` : ""].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
                     {entry.note && <p className="mt-2 text-sm text-omega-slate">{entry.note}</p>}
                   </div>
                   <div className="flex gap-2">
@@ -1653,6 +1969,9 @@ export default function HomePage() {
                           activity: entry.activity && ['Walking', 'Stretching', 'Yoga', 'Sports', 'Rest'].includes(entry.activity) ? entry.activity : "Other",
                           customActivity: entry.activity && !['Walking', 'Stretching', 'Yoga', 'Sports', 'Rest'].includes(entry.activity) ? entry.activity : "",
                           note: entry.note ?? "",
+                          durationMinutes: entry.durationMinutes?.toString() ?? "",
+                          intensity: entry.intensity ?? "",
+                          symptoms: entry.symptoms ?? "",
                           editingId: entry.id,
                         });
                         setActivityError("");
@@ -1817,6 +2136,7 @@ export default function HomePage() {
           <h2 className="mt-2 text-3xl font-semibold">Comfort, recovery, and gentle support</h2>
         </div>
 
+        <ActivityChart logs={appState.wellnessLogs} today={todayKey()} goalType={appState.activityGoalType} onGoalType={value=>setAppState(prev=>({...prev,activityGoalType:value}))} onLog={()=>{setWellnessPanel("activity");setWellnessTopic(null);}} goal={appState.activityGoal} onGoal={value=>setAppState(prev=>({...prev,activityGoal:value}))} />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {[
             { key: "gentle-stretching" as const, title: "Gentle stretching", icon: "🧘" },
@@ -2211,7 +2531,7 @@ export default function HomePage() {
             </div>
           </section>
         </div>
-      <EpsilonChat onNavigate={destination => {setSection(destination);setScreen('app');}} inApp={false} isOpen={epsilonOpen} onOpenChange={setEpsilonOpen} />
+      <EpsilonChat onNavigate={destination => {setSection(destination);setScreen('app');}} inApp={false} isOpen={epsilonOpen} onOpenChange={setEpsilonOpen} readAloudEnabled={uiPreferences.readAloudEnabled} speechRate={uiPreferences.speechRate} />
 </main>
     );
   }
@@ -2262,13 +2582,13 @@ export default function HomePage() {
             Back
           </button>
         </div>
-      <EpsilonChat onNavigate={destination => {setSection(destination);setScreen('app');}} inApp={false} isOpen={epsilonOpen} onOpenChange={setEpsilonOpen} />
+      <EpsilonChat onNavigate={destination => {setSection(destination);setScreen('app');}} inApp={false} isOpen={epsilonOpen} onOpenChange={setEpsilonOpen} readAloudEnabled={uiPreferences.readAloudEnabled} speechRate={uiPreferences.speechRate} />
 </main>
     );
   }
 
   if (screen === "onboarding") {
-    return <>{onboardingPage}<EpsilonChat onNavigate={destination => {setSection(destination);setScreen('app');}} inApp={false} isOpen={epsilonOpen} onOpenChange={setEpsilonOpen} /></>;
+    return <>{onboardingPage}<EpsilonChat onNavigate={destination => {setSection(destination);setScreen('app');}} inApp={false} isOpen={epsilonOpen} onOpenChange={setEpsilonOpen} readAloudEnabled={uiPreferences.readAloudEnabled} speechRate={uiPreferences.speechRate} /></>;
   }
 
   return (
@@ -2344,15 +2664,15 @@ export default function HomePage() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (section === "doctor-notes") setDoctorNotesNotificationsOpen((open) => !open);
+                    setDoctorNotesNotificationsOpen((open) => !open);
                   }}
                   aria-label="Notifications"
-                  aria-expanded={section === "doctor-notes" && doctorNotesNotificationsOpen}
+                  aria-expanded={doctorNotesNotificationsOpen}
                   className="rounded-full border border-omega-lilac bg-white p-2 text-omega-purple"
                 >
                   <Bell className="h-4 w-4" />
                 </button>
-                {section === "doctor-notes" && doctorNotesNotificationsOpen ? (
+                {doctorNotesNotificationsOpen ? (
                   <section className="absolute right-0 top-full z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-omega-lilac bg-white p-4 shadow-soft" aria-label="Notifications">
                     <div className="flex items-center justify-between gap-3">
                       <h2 className="text-sm font-semibold text-omega-ink">Notifications</h2>
@@ -2360,7 +2680,7 @@ export default function HomePage() {
                         <X className="h-4 w-4" />
                       </button>
                     </div>
-                    <p className="mt-3 text-sm text-omega-slate" role="status">No notifications right now.</p>
+                    <p className="mt-3 text-sm text-omega-slate" role="status">Your updates stay here in the app.</p><div className="mt-3 space-y-3 text-sm"><p><strong>Cycle estimate</strong><br />{periodSummary.date}</p><button type="button" className="w-full rounded-xl bg-omega-lavender p-3 text-left text-omega-purple" onClick={()=>{setSection("dashboard");setDoctorNotesNotificationsOpen(false);}}>View today’s check-in and cycle estimate →</button><button type="button" className="w-full rounded-xl bg-omega-beige p-3 text-left text-omega-purple" onClick={()=>{setSection("doctor-notes");setDoctorNotesNotificationsOpen(false);}}>Prepare your doctor report →</button><p className="text-xs text-omega-slate">These are in-app updates. No push notifications are sent.</p></div>
                   </section>
                 ) : null}
               </div>
@@ -2409,7 +2729,7 @@ export default function HomePage() {
           </div>
         </div>
       ) : null}
-    <EpsilonChat onNavigate={destination => {setSection(destination);setScreen('app');}} inApp={true} isOpen={epsilonOpen} onOpenChange={setEpsilonOpen} />
+    <EpsilonChat onNavigate={destination => {setSection(destination);setScreen('app');}} inApp={true} isOpen={epsilonOpen} onOpenChange={setEpsilonOpen} readAloudEnabled={uiPreferences.readAloudEnabled} speechRate={uiPreferences.speechRate} />
 </main>
   );
 }

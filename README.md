@@ -24,27 +24,8 @@ Open http://localhost:3000
 
 This project is structured as a working MVP foundation for Omega Health, with care taken to avoid making unverified medical claims and to keep the UX supportive and privacy-conscious.
 
-## Doctor Notes dictation integration
+## Dictation and doctor reports
 
-Doctor Notes is being edited by a separate contributor, so its editor was intentionally left unchanged. The reusable dictation control is available at `components/SpeechToTextButton.tsx`.
+Doctor Notes and Activity Logger use the reusable `components/SpeechToTextButton.tsx` control. Dictated words append to the current text and remain editable before saving. Recognition supports the browser's `SpeechRecognition` or `webkitSpeechRecognition` implementation; microphone permission and browser support are required. Recognition is stopped when its editor closes. Audio is not saved by the app, though the browser's speech service may process recognition.
 
-To add dictation to the Doctor Notes body editor in `app/page.tsx`, import it with the other component imports:
-
-```tsx
-import SpeechToTextButton from '../components/SpeechToTextButton';
-```
-
-In `renderDoctorNotes()`, place the control immediately before the note-body `<textarea>` (the one bound to `noteEditor.content`). Append dictated text without replacing the user's existing content:
-
-```tsx
-<SpeechToTextButton
-  onTranscript={(transcript) =>
-    setNoteEditor((previous) => ({
-      ...previous,
-      content: `${previous.content}${previous.content && !/\s$/.test(previous.content) ? ' ' : ''}${transcript}`,
-    }))
-  }
-/>
-```
-
-The transcript remains editable in the textarea and continues to use the existing Save Note flow. Browser speech recognition may use the browser vendor's speech service; no audio is recorded or saved by this component.
+Doctor Notes can also generate a client-side PDF visit summary. Private notes are excluded unless selected, and the preview distinguishes observed records from cycle estimates. The PDF is generated locally and is not sent to a server.

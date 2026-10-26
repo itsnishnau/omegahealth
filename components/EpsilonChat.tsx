@@ -3,6 +3,7 @@ import Image from 'next/image';
 import {getFaqReply, suggestedQuestions} from './epsilon-faq';
 import {useEffect, useRef, useState} from 'react';
 import {Send, X, RotateCcw} from 'lucide-react';
+import ReadAloudButton from './ReadAloudButton';
 type Section = 'dashboard' | 'doctor-notes' | 'nutrition' | 'education' | 'wellness' | 'settings';
 type Message = {role:'user'|'assistant';content:string};
 const sections: [Section,string][] = [['dashboard','Home'],['doctor-notes','Doctor Notes'],['nutrition','Nutrition'],['education','Teen Education'],['wellness','Wellness'],['settings','Settings']];
@@ -11,11 +12,15 @@ export default function EpsilonChat({
   inApp,
   isOpen = false,
   onOpenChange,
+  readAloudEnabled = true,
+  speechRate = 1,
 }:{
   onNavigate:(section:Section)=>void;
   inApp:boolean;
   isOpen?: boolean;
   onOpenChange?: (open:boolean)=>void;
+  readAloudEnabled?: boolean;
+  speechRate?: number;
 }) {
   const [open,setOpen] = useState(isOpen);
   const [messages,setMessages] = useState<Message[]>([]);
@@ -54,7 +59,7 @@ export default function EpsilonChat({
       <header className="epsilon-header"><Image src="/epsilon.png" width={45} height={55} alt=""/><div className="flex-1"><h2 className="font-semibold">Epsilon</h2><p className="text-xs opacity-80">A little guidance, at your pace</p></div><button aria-label="Clear conversation" disabled={busy} onClick={()=>{setMessages([]);setDraft('');}}><RotateCcw size={17}/></button><button aria-label="Close Epsilon" onClick={close}><X size={20}/></button></header>
       <div className="epsilon-body">
         <div className="epsilon-intro"><Image src="/epsilon.png" alt="Epsilon, your purple robot guide" width={80} height={96}/><h3>Hi, I’m Epsilon!</h3><p>Ask about your cycle, everyday wellness, or finding your way around Omega Health.</p></div>
-          <div role="log" aria-live="polite" aria-label="Conversation">{messages.map((m,i)=><div key={i} className={`epsilon-message epsilon-${m.role}`}><span className="sr-only">{m.role==='user'?'You':'Epsilon'}: </span>{m.content}</div>)}{busy && <p className="epsilon-typing" role="status" aria-label="Epsilon is typing"><span>•</span><span>•</span><span>•</span></p>}<div ref={end}/></div>
+          <div role="log" aria-live="polite" aria-label="Conversation">{messages.map((m,i)=><div key={i} className={`epsilon-message epsilon-${m.role}`}><span className="sr-only">{m.role==='user'?'You':'Epsilon'}: </span>{m.content}{m.role === 'assistant' && <ReadAloudButton text={m.content} enabled={readAloudEnabled} rate={speechRate} className="mt-2" />}</div>)}{busy && <p className="epsilon-typing" role="status" aria-label="Epsilon is typing"><span>•</span><span>•</span><span>•</span></p>}<div ref={end}/></div>
         <div className="epsilon-suggestions">{suggestedQuestions.map(q=><button key={q} disabled={busy} onClick={()=>send(q)}>{q}</button>)}</div>
       </div>
       <nav aria-label="Epsilon app shortcuts" className="epsilon-shortcuts">{sections.map(([key,label])=><button key={key} onClick={()=>{onNavigate(key);close();}}>{label}</button>)}</nav>
