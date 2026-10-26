@@ -5,7 +5,7 @@
 
 .page :is(h1, h2, h3, h4, h5, h6),
 .cardTitle {
-  font-family: var(--font-home-script), "Dancing Script", cursive;
+  font-family: var(--font-pacifico), cursive;
   letter-spacing: normal;
   line-height: 1.2;
 }
